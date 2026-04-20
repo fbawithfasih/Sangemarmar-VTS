@@ -1,10 +1,9 @@
-import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:open_filex/open_filex.dart';
-import 'package:path_provider/path_provider.dart';
 import '../services/api_service.dart';
 import '../constants/api_constants.dart';
+import 'platform_file_saver.dart'
+    if (dart.library.html) 'platform_file_saver_web.dart';
 
 Future<void> downloadFile({
   required BuildContext context,
@@ -25,28 +24,28 @@ Future<void> downloadFile({
       ),
     );
 
-    final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/$filename');
-    await file.writeAsBytes(res.data as List<int>);
-
+    final bytes = res.data as List<int>;
+    if (context.mounted) {
+      await saveAndOpenFile(context, bytes, filename);
+    }
+  } on DioException catch (e) {
+    String msg = 'Download failed.';
+    if (e.response != null) {
+      msg = 'Server error ${e.response!.statusCode}. Try again.';
+    } else if (e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.receiveTimeout) {
+      msg = 'Request timed out. Check your connection.';
+    }
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: Colors.red),
+      );
+    }
+  } catch (e) {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Downloaded: $filename'),
-          backgroundColor: Colors.green,
-          action: SnackBarAction(
-            label: 'Open',
-            textColor: Colors.white,
-            onPressed: () => OpenFilex.open(file.path),
-          ),
-        ),
-      );
-    }
-  } catch (_) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Download failed. Check your connection.'),
+          content: Text('Download failed: ${e.runtimeType}'),
           backgroundColor: Colors.red,
         ),
       );
