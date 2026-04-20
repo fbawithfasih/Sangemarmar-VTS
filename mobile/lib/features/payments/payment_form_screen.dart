@@ -50,11 +50,20 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
     setState(() => _loading = false);
   }
 
+  double get _remaining => (_sale?.grossSale ?? 0) - _total;
+  bool get _isFullyPaid => _remaining <= 0;
+
   Future<void> _addPayment() async {
     final amount = double.tryParse(_amountCtrl.text);
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Enter a valid amount')),
+      );
+      return;
+    }
+    if (amount > _remaining) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Amount exceeds remaining balance of ${_fmt.format(_remaining)}')),
       );
       return;
     }
@@ -111,6 +120,28 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
                             _row('Gross Sale', _fmt.format(_sale!.grossSale)),
                             _row('Net Sale', _fmt.format(_sale!.netSale)),
                             _row('Salesperson', _sale!.salesperson),
+                            const Divider(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  _isFullyPaid ? 'FULLY PAID' : 'Remaining',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: _isFullyPaid ? Colors.green.shade700 : Colors.red.shade700,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                Text(
+                                  _isFullyPaid ? '✓ ₹0.00' : _fmt.format(_remaining),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: _isFullyPaid ? Colors.green.shade700 : Colors.red.shade700,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                       ),
@@ -165,47 +196,83 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  if (_isFullyPaid)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.green.shade300),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text('Add Payment', style: TextStyle(fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 12),
-                          DropdownButtonFormField<String>(
-                            value: _mode,
-                            decoration: const InputDecoration(labelText: 'Payment Mode'),
-                            items: const [
-                              DropdownMenuItem(value: 'CC', child: Text('CC — Credit Card')),
-                              DropdownMenuItem(value: 'IC', child: Text('IC — Indian Currency (₹)')),
-                              DropdownMenuItem(value: 'FC', child: Text('FC — Foreign Currency (₹)')),
-                            ],
-                            onChanged: (v) => setState(() => _mode = v!),
-                          ),
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: _amountCtrl,
-                            decoration: const InputDecoration(labelText: 'Amount', prefixIcon: Icon(Icons.currency_rupee)),
-                            keyboardType: TextInputType.number,
-                          ),
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: _notesCtrl,
-                            decoration: const InputDecoration(labelText: 'Notes (optional)', prefixIcon: Icon(Icons.notes)),
-                          ),
-                          const SizedBox(height: 16),
-                          ElevatedButton.icon(
-                            onPressed: _submitting ? null : _addPayment,
-                            icon: const Icon(Icons.add),
-                            label: _submitting
-                                ? const Text('Adding...')
-                                : const Text('Add Payment'),
+                          Icon(Icons.check_circle, color: Colors.green.shade700),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Payment Complete — Gross Sale Fully Collected',
+                            style: TextStyle(
+                              color: Colors.green.shade800,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ],
                       ),
+                    )
+                  else
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Add Payment', style: TextStyle(fontWeight: FontWeight.bold)),
+                                Text(
+                                  'Remaining: ${_fmt.format(_remaining)}',
+                                  style: TextStyle(color: Colors.red.shade700, fontSize: 12, fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            DropdownButtonFormField<String>(
+                              value: _mode,
+                              decoration: const InputDecoration(labelText: 'Payment Mode'),
+                              items: const [
+                                DropdownMenuItem(value: 'CC', child: Text('CC — Credit Card')),
+                                DropdownMenuItem(value: 'IC', child: Text('IC — Indian Currency (₹)')),
+                                DropdownMenuItem(value: 'FC', child: Text('FC — Foreign Currency (₹)')),
+                              ],
+                              onChanged: (v) => setState(() => _mode = v!),
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: _amountCtrl,
+                              decoration: InputDecoration(
+                                labelText: 'Amount (max ${_fmt.format(_remaining)})',
+                                prefixIcon: const Icon(Icons.currency_rupee),
+                              ),
+                              keyboardType: TextInputType.number,
+                            ),
+                            const SizedBox(height: 12),
+                            TextField(
+                              controller: _notesCtrl,
+                              decoration: const InputDecoration(labelText: 'Notes (optional)', prefixIcon: Icon(Icons.notes)),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: _submitting ? null : _addPayment,
+                              icon: const Icon(Icons.add),
+                              label: _submitting
+                                  ? const Text('Adding...')
+                                  : const Text('+ Add Payment'),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 16),
                   OutlinedButton.icon(
                     icon: const Icon(Icons.percent),

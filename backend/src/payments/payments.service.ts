@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
 import { Payment } from './entities/payment.entity';
@@ -28,6 +28,20 @@ export class PaymentsService {
   async create(dto: CreatePaymentDto, user: User): Promise<Payment> {
     const sale = await this.salesService.findOne(dto.saleId);
     if (!sale) throw new NotFoundException('Sale not found');
+
+    const existing = await this.repo.find({ where: { saleId: dto.saleId } });
+    const paidSoFar = existing.reduce((sum, p) => sum + Number(p.amount), 0);
+    const grossSale = Number(sale.grossSale);
+    const remaining = +(grossSale - paidSoFar).toFixed(2);
+
+    if (remaining <= 0) {
+      throw new BadRequestException('Sale is already fully paid');
+    }
+    if (Number(dto.amount) > remaining) {
+      throw new BadRequestException(
+        `Amount exceeds remaining balance of ₹${remaining.toLocaleString('en-IN')}`,
+      );
+    }
 
     const payment = this.repo.create({ ...dto, createdById: user.id });
     const saved = await this.repo.save(payment);
