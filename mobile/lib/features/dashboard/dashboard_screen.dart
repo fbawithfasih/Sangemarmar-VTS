@@ -44,13 +44,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         color: const Color(0xFF1565C0),
         route: '/vehicles',
       ),
-      _DashItem(
-        icon: Icons.point_of_sale,
-        label: 'Sales',
-        subtitle: 'Record & manage sales',
-        color: const Color(0xFF2E7D32),
-        route: '/sales',
-      ),
+      if (!(user?.isGateOperator ?? false))
+        _DashItem(
+          icon: Icons.point_of_sale,
+          label: 'Sales',
+          subtitle: 'Record & manage sales',
+          color: const Color(0xFF2E7D32),
+          route: '/sales',
+        ),
       if (user?.isManager ?? false)
         _DashItem(
           icon: Icons.bar_chart,

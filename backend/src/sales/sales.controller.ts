@@ -17,7 +17,7 @@ export class SalesController {
 
   @Post()
   @UseGuards(RolesGuard)
-  @Roles(UserRole.GATE_OPERATOR, UserRole.SALES_STAFF, UserRole.MANAGER, UserRole.ADMIN)
+  @Roles(UserRole.SALES_STAFF, UserRole.MANAGER, UserRole.ADMIN)
   create(@Body() dto: CreateSaleDto, @CurrentUser() user: User) {
     return this.salesService.create(dto, user);
   }
@@ -39,7 +39,7 @@ export class SalesController {
 
   @Patch(':id')
   @UseGuards(RolesGuard)
-  @Roles(UserRole.GATE_OPERATOR, UserRole.SALES_STAFF, UserRole.MANAGER, UserRole.ADMIN)
+  @Roles(UserRole.SALES_STAFF, UserRole.MANAGER, UserRole.ADMIN)
   update(
     @Param('id') id: string,
     @Body() updates: Partial<CreateSaleDto>,

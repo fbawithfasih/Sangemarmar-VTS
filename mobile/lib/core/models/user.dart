@@ -24,8 +24,7 @@ class AppUser {
   bool get isSalesStaff => role == 'SALES_STAFF';
   bool get isCashier => role == 'CASHIER';
 
-  bool get canCreateSale =>
-      isGateOperator || isSalesStaff || isManager;
+  bool get canCreateSale => isSalesStaff || isManager;
 
   bool get canCreatePayment => isCashier || isManager;
 
