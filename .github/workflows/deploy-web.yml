@@ -1,0 +1,35 @@
+name: Deploy Flutter Web
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Build Flutter web
+        run: |
+          cd mobile
+          flutter pub get
+          flutter build web --release --base-href "/Sangemarmar-VTS/"
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: mobile/build/web
+          force_orphan: true
