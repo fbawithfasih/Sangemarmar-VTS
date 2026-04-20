@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { Request, Response } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -21,6 +22,11 @@ async function bootstrap() {
   });
 
   app.setGlobalPrefix('api/v1');
+
+  const httpAdapter = app.getHttpAdapter();
+  httpAdapter.get('/api/v1/health', (_req: Request, res: Response) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
 
   const port = process.env.APP_PORT || 3000;
   await app.listen(port);
