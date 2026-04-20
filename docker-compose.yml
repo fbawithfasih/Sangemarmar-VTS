@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sangemarmar_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: sangemarmar_vts
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sangemarmar_backend
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: sangemarmar_vts
+      JWT_SECRET: change_this_in_production_use_long_random_string
+      JWT_EXPIRES_IN: 24h
+      APP_PORT: 3000
+      NODE_ENV: development
+      COMMISSION_RATE_DRIVER: 2
+      COMMISSION_RATE_GUIDE: 1.5
+      COMMISSION_RATE_LOCAL_AGENT: 1
+      COMMISSION_RATE_COMPANY: 3
+      # Telegram: get token from @BotFather, chat_id from @userinfobot
+      TELEGRAM_BOT_TOKEN: ''
+      TELEGRAM_CHAT_ID: ''
+      # WhatsApp via Twilio (optional)
+      TWILIO_ACCOUNT_SID: 'AC1d2047829fd734a34d9eac2549767f05'
+      TWILIO_AUTH_TOKEN: '2a3bd1a8c91e5d870b1a265cdcfd4851'
+      TWILIO_WHATSAPP_FROM: '+14155238886'
+      TWILIO_WHATSAPP_TO: '+918755863215'
+    ports:
+      - '3001:3000'
+
+volumes:
+  postgres_data:
