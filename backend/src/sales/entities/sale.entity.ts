@@ -15,7 +15,7 @@ export class Sale {
   @Column()
   vehicleEntryId: string;
 
-  @ManyToOne(() => VehicleEntry, { eager: false })
+  @ManyToOne(() => VehicleEntry, { eager: false, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'vehicleEntryId' })
   vehicleEntry: VehicleEntry;
 

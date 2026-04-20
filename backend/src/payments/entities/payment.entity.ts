@@ -14,7 +14,7 @@ export class Payment {
   @Column()
   saleId: string;
 
-  @ManyToOne(() => Sale, { eager: false })
+  @ManyToOne(() => Sale, { eager: false, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'saleId' })
   sale: Sale;
 
