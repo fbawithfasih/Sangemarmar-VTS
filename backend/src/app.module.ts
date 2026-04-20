@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { VehiclesModule } from './vehicles/vehicles.module';
@@ -30,22 +30,24 @@ import { Notification } from './notifications/entities/notification.entity';
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
-        const databaseUrl = config.get('DATABASE_URL');
-        return {
-          type: 'postgres',
-          ...(databaseUrl
-            ? { url: databaseUrl, ssl: { rejectUnauthorized: false } }
-            : {
-                host: config.get('DB_HOST', 'localhost'),
-                port: config.get<number>('DB_PORT', 5432),
-                username: config.get('DB_USERNAME', 'postgres'),
-                password: config.get('DB_PASSWORD', 'postgres'),
-                database: config.get('DB_NAME', 'sangemarmar_vts'),
-              }),
+        const databaseUrl = config.get<string>('DATABASE_URL');
+        const base = {
+          type: 'postgres' as const,
           entities: [User, VehicleEntry, Sale, Payment, Commission, CommissionConfig, LogisticsEvent, AuditLog, Notification],
           synchronize: true,
           logging: config.get('NODE_ENV') === 'development',
         };
+        if (databaseUrl) {
+          return { ...base, url: databaseUrl, ssl: { rejectUnauthorized: false } } as TypeOrmModuleOptions;
+        }
+        return {
+          ...base,
+          host: config.get('DB_HOST', 'localhost'),
+          port: parseInt(config.get('DB_PORT', '5432'), 10),
+          username: config.get('DB_USERNAME', 'postgres'),
+          password: config.get('DB_PASSWORD', 'postgres'),
+          database: config.get('DB_NAME', 'sangemarmar_vts'),
+        } as TypeOrmModuleOptions;
       },
     }),
     AuthModule,
