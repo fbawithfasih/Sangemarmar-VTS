@@ -43,6 +43,9 @@ class ApiService {
   Future<Response> put(String path, {dynamic data}) =>
       _dio.put(path, data: data);
 
+  Future<Response> delete(String path) =>
+      _dio.delete(path);
+
   Future<void> saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, token);

@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, ILike, Repository } from 'typeorm';
 import { VehicleEntry } from './entities/vehicle-entry.entity';
 import { CreateVehicleEntryDto } from './dto/create-vehicle-entry.dto';
+import { UpdateVehicleEntryDto } from './dto/update-vehicle-entry.dto';
 import { AuditService } from '../audit/audit.service';
 import { LogisticsService } from '../logistics/logistics.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -80,6 +81,35 @@ export class VehiclesService {
     });
     if (!entry) throw new NotFoundException('Vehicle entry not found');
     return entry;
+  }
+
+  async update(id: string, dto: UpdateVehicleEntryDto, user: User): Promise<VehicleEntry> {
+    if (user.role !== UserRole.ADMIN) throw new ForbiddenException('Only admins can edit vehicle entries');
+    const entry = await this.findOne(id);
+    const oldValues = { ...entry };
+    await this.repo.update(id, dto as any);
+    await this.auditService.log({
+      action: AuditAction.STATUS_CHANGED,
+      entityType: 'VehicleEntry',
+      entityId: id,
+      userId: user.id,
+      oldValues: oldValues as any,
+      newValues: dto as any,
+    });
+    return this.findOne(id);
+  }
+
+  async delete(id: string, user: User): Promise<void> {
+    if (user.role !== UserRole.ADMIN) throw new ForbiddenException('Only admins can delete vehicle entries');
+    await this.findOne(id);
+    await this.repo.delete(id);
+    await this.auditService.log({
+      action: AuditAction.STATUS_CHANGED,
+      entityType: 'VehicleEntry',
+      entityId: id,
+      userId: user.id,
+      newValues: { deleted: true },
+    });
   }
 
   async updateStatus(id: string, status: WorkflowStatus, userId: string): Promise<VehicleEntry> {

@@ -156,6 +156,48 @@ class _VehicleEntryListScreenState extends State<VehicleEntryListScreen> {
     );
   }
 
+  Future<void> _editEntry(VehicleEntry entry) async {
+    final updated = await context.push<bool>('/vehicles/${entry.id}');
+    if (updated == true) _load(search: _searchCtrl.text);
+  }
+
+  Future<void> _deleteEntry(VehicleEntry entry) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete Vehicle Entry?'),
+        content: Text(
+          'This will permanently delete entry for ${entry.vehicleNumber}. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await _api.delete('${ApiConstants.vehicles}/${entry.id}');
+      _load(search: _searchCtrl.text);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Vehicle entry deleted'), backgroundColor: Colors.red),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to delete entry'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Future<void> _markCompleted(VehicleEntry entry) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -189,6 +231,7 @@ class _VehicleEntryListScreenState extends State<VehicleEntryListScreen> {
 
   void _showEntryActions(BuildContext context, VehicleEntry entry) {
     final user = context.read<AuthProvider>().user;
+    final isAdmin = user?.isAdmin ?? false;
     final canComplete = (user?.isManager ?? false) && entry.status != 'COMPLETED';
 
     showModalBottomSheet(
@@ -234,6 +277,25 @@ class _VehicleEntryListScreenState extends State<VehicleEntryListScreen> {
                   _markCompleted(entry);
                 },
               ),
+            if (isAdmin) ...[
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.edit, color: Color(0xFF1565C0)),
+                title: const Text('Edit Entry'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _editEntry(entry);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text('Delete Entry', style: TextStyle(color: Colors.red)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _deleteEntry(entry);
+                },
+              ),
+            ],
           ],
         ),
       ),
