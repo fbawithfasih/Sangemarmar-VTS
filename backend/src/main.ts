@@ -28,7 +28,7 @@ async function bootstrap() {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
-  const port = process.env.APP_PORT || 3000;
+  const port = process.env.PORT || process.env.APP_PORT || 3000;
   await app.listen(port);
   console.log(`Sangemarmar VTS API running on http://localhost:${port}/api/v1`);
 }
