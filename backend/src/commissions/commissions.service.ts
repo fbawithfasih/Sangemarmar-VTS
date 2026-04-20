@@ -91,19 +91,15 @@ export class CommissionsService implements OnModuleInit {
       { type: CommissionRecipientType.COMPANY, name: entry.companyName },
     ];
 
-    const commissions = await Promise.all(
-      recipients.map(async ({ type, name }) => {
-        const rate = await this.getRateFromDb(type);
-        const amount = Number(((Number(sale.netSale) * rate) / 100).toFixed(2));
-        return this.repo.create({
-          saleId: sale.id,
-          recipientType: type,
-          recipientName: name,
-          rate,
-          calculatedAmount: amount,
-          finalAmount: amount,
-          isOverridden: false,
-        });
+    const commissions = recipients.map(({ type, name }) =>
+      this.repo.create({
+        saleId: sale.id,
+        recipientType: type,
+        recipientName: name,
+        rate: 0,
+        calculatedAmount: 0,
+        finalAmount: 0,
+        isOverridden: false,
       }),
     );
 
@@ -148,7 +144,7 @@ export class CommissionsService implements OnModuleInit {
       entityId: id,
       userId: user.id,
       oldValues: old,
-      newValues: { finalAmount: dto.finalAmount, overrideReason: dto.overrideReason },
+      newValues: { finalAmount: dto.finalAmount, overrideReason: dto.overrideReason ?? null },
     });
 
     if (user.role !== UserRole.ADMIN) {

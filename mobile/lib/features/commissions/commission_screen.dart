@@ -23,7 +23,7 @@ class _CommissionScreenState extends State<CommissionScreen> {
   bool _loading = true;
   final _fmt = NumberFormat.currency(symbol: '₹', decimalDigits: 2);
 
-  final Map<String, TextEditingController> _rateCtrl = {};
+  final Map<String, TextEditingController> _amountCtrl = {};
   final Map<String, bool> _saving = {};
 
   @override
@@ -34,7 +34,7 @@ class _CommissionScreenState extends State<CommissionScreen> {
 
   @override
   void dispose() {
-    for (final c in _rateCtrl.values) {
+    for (final c in _amountCtrl.values) {
       c.dispose();
     }
     super.dispose();
@@ -54,10 +54,13 @@ class _CommissionScreenState extends State<CommissionScreen> {
           .toList();
 
       for (final c in commissions) {
-        if (!_rateCtrl.containsKey(c.id)) {
-          _rateCtrl[c.id] = TextEditingController(text: c.rate.toStringAsFixed(2));
+        if (!_amountCtrl.containsKey(c.id)) {
+          _amountCtrl[c.id] = TextEditingController(
+            text: c.finalAmount > 0 ? c.finalAmount.toStringAsFixed(2) : '',
+          );
         } else {
-          _rateCtrl[c.id]!.text = c.rate.toStringAsFixed(2);
+          _amountCtrl[c.id]!.text =
+              c.finalAmount > 0 ? c.finalAmount.toStringAsFixed(2) : '';
         }
         _saving[c.id] = false;
       }
@@ -72,37 +75,25 @@ class _CommissionScreenState extends State<CommissionScreen> {
     }
   }
 
-  double _calcAmount(String commissionId) {
-    final netSale = _sale?.netSale ?? 0;
-    final rate = double.tryParse(_rateCtrl[commissionId]?.text ?? '') ?? 0;
-    return (netSale * rate) / 100;
-  }
-
   Future<void> _save(Commission commission) async {
-    final rate = double.tryParse(_rateCtrl[commission.id]?.text ?? '');
-    if (rate == null || rate < 0) {
+    final amount = double.tryParse(_amountCtrl[commission.id]?.text ?? '');
+    if (amount == null || amount < 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid percentage')),
+        const SnackBar(content: Text('Enter a valid amount')),
       );
       return;
     }
 
-    final netSale = _sale?.netSale ?? 0;
-    final finalAmount =
-        double.parse(((netSale * rate) / 100).toStringAsFixed(2));
-
     setState(() => _saving[commission.id] = true);
     try {
-      await _api.patch('${ApiConstants.commissions}/${commission.id}/override',
-          data: {
-            'rate': rate,
-            'finalAmount': finalAmount,
-            'overrideReason': 'Rate adjusted to $rate%',
-          });
+      await _api.patch(
+        '${ApiConstants.commissions}/${commission.id}/override',
+        data: {'finalAmount': amount},
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${commission.recipientLabel} commission updated'),
+            content: Text('${commission.recipientLabel} commission saved'),
             backgroundColor: Colors.green,
           ),
         );
@@ -112,17 +103,22 @@ class _CommissionScreenState extends State<CommissionScreen> {
       if (mounted) {
         String msg = 'Failed to save';
         try {
-          final response = (e as dynamic).response;
-          final data = response?.data;
+          final data = (e as dynamic).response?.data;
           if (data is Map) msg = data['message']?.toString() ?? msg;
         } catch (_) {}
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $msg'), backgroundColor: Colors.red, duration: const Duration(seconds: 6)),
+          SnackBar(
+              content: Text('Error: $msg'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 6)),
         );
       }
     }
     if (mounted) setState(() => _saving[commission.id] = false);
   }
+
+  double get _totalCommission =>
+      _commissions.fold(0, (sum, c) => sum + c.finalAmount);
 
   @override
   Widget build(BuildContext context) {
@@ -143,13 +139,26 @@ class _CommissionScreenState extends State<CommissionScreen> {
                         color: const Color(0xFF1B5E20).withOpacity(0.07),
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 10),
-                        child: Text(
-                          'Net Sale: ${_fmt.format(_sale!.netSale)}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1B5E20),
-                            fontSize: 14,
-                          ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Net Sale: ${_fmt.format(_sale!.netSale)}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1B5E20),
+                                fontSize: 14,
+                              ),
+                            ),
+                            Text(
+                              'Total Commission: ${_fmt.format(_totalCommission)}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1565C0),
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     Expanded(
@@ -160,13 +169,11 @@ class _CommissionScreenState extends State<CommissionScreen> {
                           final c = _commissions[i];
                           return _CommissionCard(
                             commission: c,
-                            rateCtrl: _rateCtrl[c.id]!,
+                            amountCtrl: _amountCtrl[c.id]!,
                             saving: _saving[c.id] ?? false,
                             canEdit: canEdit,
                             fmt: _fmt,
-                            calcAmount: _calcAmount,
                             onSave: () => _save(c),
-                            onRateChanged: () => setState(() {}),
                           );
                         },
                       ),
@@ -179,31 +186,23 @@ class _CommissionScreenState extends State<CommissionScreen> {
 
 class _CommissionCard extends StatelessWidget {
   final Commission commission;
-  final TextEditingController rateCtrl;
+  final TextEditingController amountCtrl;
   final bool saving;
   final bool canEdit;
   final NumberFormat fmt;
-  final double Function(String) calcAmount;
   final VoidCallback onSave;
-  final VoidCallback onRateChanged;
 
   const _CommissionCard({
     required this.commission,
-    required this.rateCtrl,
+    required this.amountCtrl,
     required this.saving,
     required this.canEdit,
     required this.fmt,
-    required this.calcAmount,
     required this.onSave,
-    required this.onRateChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    final liveAmount = calcAmount(commission.id);
-    final currentRate = double.tryParse(rateCtrl.text) ?? commission.rate;
-    final rateChanged = currentRate != commission.rate;
-
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -222,136 +221,84 @@ class _CommissionCard extends StatelessWidget {
                       style: const TextStyle(
                           fontWeight: FontWeight.bold, fontSize: 16),
                     ),
-                    Text(commission.recipientName,
-                        style:
-                            const TextStyle(color: Colors.grey, fontSize: 13)),
+                    Text(
+                      commission.recipientName,
+                      style:
+                          const TextStyle(color: Colors.grey, fontSize: 13),
+                    ),
                   ],
                 ),
                 if (commission.isOverridden)
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
+                      color: Colors.green.shade50,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.orange.shade300),
+                      border: Border.all(color: Colors.green.shade300),
                     ),
                     child: Text(
-                      'ADJUSTED',
+                      'SAVED',
                       style: TextStyle(
                           fontSize: 10,
-                          color: Colors.orange.shade800,
+                          color: Colors.green.shade800,
                           fontWeight: FontWeight.bold),
                     ),
                   ),
               ],
             ),
             const SizedBox(height: 14),
-
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Commission %',
-                          style: TextStyle(fontSize: 11, color: Colors.grey)),
-                      const SizedBox(height: 4),
-                      canEdit
-                          ? TextField(
-                              controller: rateCtrl,
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                      decimal: true),
-                              onChanged: (_) => onRateChanged(),
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 20),
-                              decoration: InputDecoration(
-                                suffixText: '%',
-                                suffixStyle: TextStyle(
-                                    color: Colors.grey.shade600, fontSize: 16),
-                                isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 10),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide:
-                                      BorderSide(color: Colors.grey.shade300),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF3D5216), width: 2),
-                                ),
-                              ),
-                            )
-                          : Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              child: Text('${commission.rate}%',
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 20)),
-                            ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 3,
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: rateChanged
-                          ? Colors.orange.shade50
-                          : Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: rateChanged
-                            ? Colors.orange.shade200
-                            : Colors.green.shade200,
+            canEdit
+                ? TextField(
+                    controller: amountCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 20),
+                    decoration: InputDecoration(
+                      labelText: 'Commission Amount',
+                      prefixText: '₹ ',
+                      prefixStyle: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold),
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide:
+                            BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(
+                            color: Color(0xFF3D5216), width: 2),
                       ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  )
+                : Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green.shade200),
+                    ),
+                    child: Row(
                       children: [
+                        Icon(Icons.currency_rupee,
+                            size: 18, color: Colors.green.shade700),
                         Text(
-                          rateChanged ? 'New Amount' : 'Commission Amount',
+                          fmt.format(commission.finalAmount),
                           style: TextStyle(
-                            fontSize: 11,
-                            color: rateChanged
-                                ? Colors.orange.shade700
-                                : Colors.green.shade700,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          fmt.format(liveAmount),
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                            color: rateChanged
-                                ? Colors.orange.shade800
-                                : Colors.green.shade800,
-                          ),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: Colors.green.shade800),
                         ),
                       ],
                     ),
                   ),
-                ),
-              ],
-            ),
-
-            if (commission.isOverridden && commission.overrideReason != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Note: ${commission.overrideReason}',
-                style: TextStyle(fontSize: 12, color: Colors.orange.shade700),
-              ),
-            ],
-
-            if (canEdit && rateChanged) ...[
+            if (canEdit) ...[
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
@@ -365,7 +312,7 @@ class _CommissionCard extends StatelessWidget {
                               strokeWidth: 2, color: Colors.white),
                         )
                       : const Icon(Icons.check, size: 18),
-                  label: Text(saving ? 'Saving…' : 'Apply ${rateCtrl.text}%'),
+                  label: Text(saving ? 'Saving…' : 'Save Amount'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF3D5216),
                     minimumSize: const Size(0, 42),
