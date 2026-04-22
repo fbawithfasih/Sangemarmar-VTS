@@ -1,11 +1,8 @@
-import 'dart:io';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:open_filex/open_filex.dart';
-import 'package:path_provider/path_provider.dart';
-import '../../core/services/api_service.dart';
 import '../../core/constants/api_constants.dart';
+import '../../core/services/api_service.dart';
+import '../../core/utils/download_helper.dart';
 import '../../core/widgets/app_bar.dart';
 
 class StatementDetailScreen extends StatefulWidget {
@@ -29,7 +26,6 @@ class _StatementDetailScreenState extends State<StatementDetailScreen> {
   String? _error;
   DateTime? _dateFrom;
   DateTime? _dateTo;
-  bool _downloading = false;
   final _fmt = NumberFormat.currency(symbol: '₹', decimalDigits: 2);
   final _dtFmt = DateFormat('dd MMM yyyy');
 
@@ -56,139 +52,20 @@ class _StatementDetailScreenState extends State<StatementDetailScreen> {
     }
   }
 
-  Future<void> _pickDate(bool isFrom) async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-    );
-    if (picked == null) return;
-    setState(() {
-      if (isFrom) _dateFrom = picked;
-      else _dateTo = picked;
-    });
-    _load();
-  }
-
-  Future<void> _download(String format) async {
-    setState(() => _downloading = true);
-    try {
-      final params = {
+  Map<String, dynamic> _exportParams() => {
         'type': widget.type,
         'name': widget.name,
-        'format': format,
         if (_dateFrom != null) 'dateFrom': _dateFrom!.toIso8601String(),
         if (_dateTo != null) 'dateTo': _dateTo!.toIso8601String(),
       };
 
-      final token = await _api.getToken();
-      final dio = Dio();
-      final url = '${ApiConstants.baseUrl}${ApiConstants.statementExport}';
-      final res = await dio.get(
-        url,
-        queryParameters: params,
-        options: Options(
-          headers: {'Authorization': 'Bearer $token'},
-          responseType: ResponseType.bytes,
-        ),
-      );
-
-      final dir = await getTemporaryDirectory();
-      final safeName = widget.name.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
-      final filename = '${widget.type}_${safeName}_statement.$format';
-      final file = File('${dir.path}/$filename');
-      await file.writeAsBytes(res.data as List<int>);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Downloaded: $filename'),
-            backgroundColor: Colors.green,
-            action: SnackBarAction(
-              label: 'Open',
-              textColor: Colors.white,
-              onPressed: () => OpenFilex.open(file.path),
-            ),
-          ),
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Download failed'), backgroundColor: Colors.red),
-        );
-      }
-    }
-    setState(() => _downloading = false);
-  }
-
   void _showDownloadOptions() {
-    showModalBottomSheet(
+    final safeName = widget.name.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+    showDownloadSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Download Statement As',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 16),
-            _downloadTile(
-              Icons.table_chart,
-              'Excel (.xlsx)',
-              'Full details in spreadsheet format',
-              Colors.green,
-              () { Navigator.pop(context); _download('xlsx'); },
-            ),
-            const SizedBox(height: 8),
-            _downloadTile(
-              Icons.picture_as_pdf,
-              'PDF (.pdf)',
-              'Formatted report for printing',
-              Colors.red,
-              () { Navigator.pop(context); _download('pdf'); },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _downloadTile(IconData icon, String title, String subtitle, Color color, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: color)),
-                  Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                ],
-              ),
-            ),
-            Icon(Icons.download, color: color),
-          ],
-        ),
-      ),
+      path: ApiConstants.statementExport,
+      queryParams: _exportParams(),
+      baseFilename: '${widget.type}_${safeName}_statement',
     );
   }
 
@@ -206,17 +83,11 @@ class _StatementDetailScreenState extends State<StatementDetailScreen> {
           ],
         ),
         actions: [
-          if (_downloading)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
-            )
-          else
-            IconButton(
-              icon: const Icon(Icons.download),
-              tooltip: 'Download Statement',
-              onPressed: _showDownloadOptions,
-            ),
+          IconButton(
+            icon: const Icon(Icons.download),
+            tooltip: 'Download Statement',
+            onPressed: _showDownloadOptions,
+          ),
           IconButton(
             icon: const Icon(Icons.date_range),
             tooltip: 'Filter by date',
