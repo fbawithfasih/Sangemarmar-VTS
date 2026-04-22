@@ -26,7 +26,7 @@ export class BillingOrder {
   @Column({ type: 'timestamptz', default: () => 'NOW()' })
   orderDate: Date;
 
-  @Column({ type: 'enum', enum: BillingOrderStatus, default: BillingOrderStatus.DRAFT })
+  @Column({ type: 'varchar', length: 20, default: BillingOrderStatus.DRAFT })
   status: BillingOrderStatus;
 
   @Column() buyerName: string;
