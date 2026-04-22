@@ -81,7 +81,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     if (!_formKey.currentState!.validate()) return;
     final auth = context.read<AuthProvider>();
     final ok = await auth.login(_emailCtrl.text.trim(), _passCtrl.text);
-    if (ok && mounted) context.go('/dashboard');
+    if (ok && mounted) {
+      final user = context.read<AuthProvider>().user;
+      context.go((user?.isManager ?? false) ? '/module-select' : '/dashboard');
+    }
   }
 
   @override
