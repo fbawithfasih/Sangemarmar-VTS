@@ -49,6 +49,24 @@ Thumbs.db
 postgres_data/
 
 # ========================
+# Flutter web build output (root — deployed via GitHub Actions)
+# ========================
+index.html
+main.dart.js
+main.dart.js.map
+flutter.js
+flutter_bootstrap.js
+flutter_service_worker.js
+manifest.json
+version.json
+favicon.png
+.last_build_id
+firebase-debug.log
+canvaskit/
+assets/
+icons/
+
+# ========================
 # Secrets (never commit)
 # ========================
 .env
