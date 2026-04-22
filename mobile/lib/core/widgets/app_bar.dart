@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 
 class SangemarmarAppBar extends StatelessWidget implements PreferredSizeWidget {
   final Widget title;
@@ -21,6 +24,30 @@ class SangemarmarAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<AuthProvider>().user;
+    final isManager = user?.isManager ?? false;
+    final onModuleSelect =
+        GoRouterState.of(context).matchedLocation == '/module-select';
+
+    final mainMenuBtn = (isManager && !onModuleSelect)
+        ? TextButton.icon(
+            onPressed: () => context.go('/module-select'),
+            icon: const Icon(Icons.grid_view_rounded, size: 16, color: Colors.white),
+            label: const Text(
+              'Main Menu',
+              style: TextStyle(color: Colors.white, fontSize: 12),
+            ),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+          )
+        : null;
+
+    final mergedActions = [
+      if (mainMenuBtn != null) mainMenuBtn,
+      ...?actions,
+    ];
+
     return AppBar(
       automaticallyImplyLeading: automaticallyImplyLeading,
       title: Row(
@@ -35,7 +62,7 @@ class SangemarmarAppBar extends StatelessWidget implements PreferredSizeWidget {
           Flexible(child: title),
         ],
       ),
-      actions: actions,
+      actions: mergedActions.isEmpty ? null : mergedActions,
       bottom: bottom,
     );
   }
