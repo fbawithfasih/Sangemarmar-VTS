@@ -23,21 +23,12 @@ class _CommissionScreenState extends State<CommissionScreen> {
   bool _loading = true;
   final _fmt = NumberFormat.currency(symbol: '₹', decimalDigits: 2);
 
-  final Map<String, TextEditingController> _amountCtrl = {};
   final Map<String, bool> _saving = {};
 
   @override
   void initState() {
     super.initState();
     _load();
-  }
-
-  @override
-  void dispose() {
-    for (final c in _amountCtrl.values) {
-      c.dispose();
-    }
-    super.dispose();
   }
 
   Future<void> _load() async {
@@ -54,14 +45,6 @@ class _CommissionScreenState extends State<CommissionScreen> {
           .toList();
 
       for (final c in commissions) {
-        if (!_amountCtrl.containsKey(c.id)) {
-          _amountCtrl[c.id] = TextEditingController(
-            text: c.finalAmount > 0 ? c.finalAmount.toStringAsFixed(2) : '',
-          );
-        } else {
-          _amountCtrl[c.id]!.text =
-              c.finalAmount > 0 ? c.finalAmount.toStringAsFixed(2) : '';
-        }
         _saving[c.id] = false;
       }
 
@@ -75,15 +58,7 @@ class _CommissionScreenState extends State<CommissionScreen> {
     }
   }
 
-  Future<void> _save(Commission commission) async {
-    final amount = double.tryParse(_amountCtrl[commission.id]?.text ?? '');
-    if (amount == null || amount < 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a valid amount')),
-      );
-      return;
-    }
-
+  Future<void> _save(Commission commission, double amount) async {
     setState(() => _saving[commission.id] = true);
     try {
       await _api.patch(
@@ -136,7 +111,7 @@ class _CommissionScreenState extends State<CommissionScreen> {
                     if (_sale != null)
                       Container(
                         width: double.infinity,
-                        color: const Color(0xFF1B5E20).withOpacity(0.07),
+                        color: const Color(0xFF1B5E20).withValues(alpha: 0.07),
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 10),
                         child: Row(
@@ -168,12 +143,13 @@ class _CommissionScreenState extends State<CommissionScreen> {
                         itemBuilder: (_, i) {
                           final c = _commissions[i];
                           return _CommissionCard(
+                            key: ValueKey(c.id),
                             commission: c,
-                            amountCtrl: _amountCtrl[c.id]!,
+                            netSale: _sale?.netSale ?? 0,
                             saving: _saving[c.id] ?? false,
                             canEdit: canEdit,
                             fmt: _fmt,
-                            onSave: () => _save(c),
+                            onSave: (amount) => _save(c, amount),
                           );
                         },
                       ),
@@ -184,17 +160,18 @@ class _CommissionScreenState extends State<CommissionScreen> {
   }
 }
 
-class _CommissionCard extends StatelessWidget {
+class _CommissionCard extends StatefulWidget {
   final Commission commission;
-  final TextEditingController amountCtrl;
+  final double netSale;
   final bool saving;
   final bool canEdit;
   final NumberFormat fmt;
-  final VoidCallback onSave;
+  final void Function(double amount) onSave;
 
   const _CommissionCard({
+    super.key,
     required this.commission,
-    required this.amountCtrl,
+    required this.netSale,
     required this.saving,
     required this.canEdit,
     required this.fmt,
@@ -202,7 +179,40 @@ class _CommissionCard extends StatelessWidget {
   });
 
   @override
+  State<_CommissionCard> createState() => _CommissionCardState();
+}
+
+class _CommissionCardState extends State<_CommissionCard> {
+  late final TextEditingController _pctCtrl;
+
+  double get _calculatedAmount {
+    final pct = double.tryParse(_pctCtrl.text) ?? 0;
+    return (pct / 100) * widget.netSale;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Back-calculate percentage from existing saved amount
+    final existingPct = widget.netSale > 0 && widget.commission.finalAmount > 0
+        ? (widget.commission.finalAmount / widget.netSale) * 100
+        : 0.0;
+    _pctCtrl = TextEditingController(
+      text: existingPct > 0 ? existingPct.toStringAsFixed(2) : '',
+    );
+    _pctCtrl.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _pctCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final amount = _calculatedAmount;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -217,21 +227,20 @@ class _CommissionCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      commission.recipientLabel,
+                      widget.commission.recipientLabel,
                       style: const TextStyle(
                           fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     Text(
-                      commission.recipientName,
-                      style:
-                          const TextStyle(color: Colors.grey, fontSize: 13),
+                      widget.commission.recipientName,
+                      style: const TextStyle(color: Colors.grey, fontSize: 13),
                     ),
                   ],
                 ),
-                if (commission.isOverridden)
+                if (widget.commission.isOverridden)
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: Colors.green.shade50,
                       borderRadius: BorderRadius.circular(8),
@@ -248,63 +257,90 @@ class _CommissionCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 14),
-            canEdit
-                ? TextField(
-                    controller: amountCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true),
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 20),
-                    decoration: InputDecoration(
-                      labelText: 'Commission Amount',
-                      prefixText: '₹ ',
-                      prefixStyle: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold),
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 10),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide:
-                            BorderSide(color: Colors.grey.shade300),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(
-                            color: Color(0xFF3D5216), width: 2),
-                      ),
-                    ),
-                  )
-                : Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.green.shade200),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.currency_rupee,
-                            size: 18, color: Colors.green.shade700),
-                        Text(
-                          fmt.format(commission.finalAmount),
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                              color: Colors.green.shade800),
+            if (widget.canEdit) ...[
+              // Percentage input + live amount display
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: TextField(
+                      controller: _pctCtrl,
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 20),
+                      decoration: InputDecoration(
+                        labelText: '% of Net Sale',
+                        suffixText: '%',
+                        suffixStyle: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold),
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
                         ),
-                      ],
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(
+                              color: Color(0xFF3D5216), width: 2),
+                        ),
+                      ),
                     ),
                   ),
-            if (canEdit) ...[
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 3,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: amount > 0
+                            ? const Color(0xFF1B5E20).withValues(alpha: 0.07)
+                            : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: amount > 0
+                              ? const Color(0xFF1B5E20).withValues(alpha: 0.3)
+                              : Colors.grey.shade300,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Commission Amount',
+                            style: TextStyle(
+                                fontSize: 11, color: Colors.grey.shade600),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            amount > 0 ? widget.fmt.format(amount) : '₹ —',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: amount > 0
+                                  ? const Color(0xFF1B5E20)
+                                  : Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: saving ? null : onSave,
-                  icon: saving
+                  onPressed: (widget.saving || amount <= 0)
+                      ? null
+                      : () => widget.onSave(amount),
+                  icon: widget.saving
                       ? const SizedBox(
                           width: 16,
                           height: 16,
@@ -312,14 +348,35 @@ class _CommissionCard extends StatelessWidget {
                               strokeWidth: 2, color: Colors.white),
                         )
                       : const Icon(Icons.check, size: 18),
-                  label: Text(saving ? 'Saving…' : 'Save Amount'),
+                  label: Text(widget.saving ? 'Saving…' : 'Save Amount'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF3D5216),
                     minimumSize: const Size(0, 42),
                   ),
                 ),
               ),
-            ],
+            ] else
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.currency_rupee,
+                        size: 18, color: Colors.green.shade700),
+                    Text(
+                      widget.fmt.format(widget.commission.finalAmount),
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: Colors.green.shade800),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
