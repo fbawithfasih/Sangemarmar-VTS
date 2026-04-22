@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Patch, Put, Query, UseGuards } from '@nes
 import { CommissionsService } from './commissions.service';
 import { OverrideCommissionDto } from './dto/override-commission.dto';
 import { UpdateCommissionConfigDto } from './dto/update-commission-config.dto';
+import { RecordCommissionPaymentDto } from './dto/record-commission-payment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -46,5 +47,12 @@ export class CommissionsController {
     @CurrentUser() user: User,
   ) {
     return this.commissionsService.override(id, dto, user);
+  }
+
+  @Patch(':id/pay')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  recordPayment(@Param('id') id: string, @Body() dto: RecordCommissionPaymentDto) {
+    return this.commissionsService.recordPayment(id, dto);
   }
 }

@@ -1,4 +1,4 @@
-import { Injectable, ForbiddenException, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException, BadRequestException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Commission } from './entities/commission.entity';
@@ -165,5 +165,24 @@ export class CommissionsService implements OnModuleInit {
     if (filters?.saleId) where.saleId = filters.saleId;
     if (filters?.recipientType) where.recipientType = filters.recipientType;
     return this.repo.find({ where, order: { createdAt: 'DESC' }, relations: ['sale', 'overriddenBy'] });
+  }
+
+  async recordPayment(id: string, dto: { paidAmount: number; paidAt: string }): Promise<Commission> {
+    const commission = await this.repo.findOne({ where: { id } });
+    if (!commission) throw new NotFoundException('Commission not found');
+
+    const cap = Number(commission.finalAmount);
+    if (dto.paidAmount > cap) {
+      throw new BadRequestException(
+        `Paid amount (₹${dto.paidAmount}) exceeds commission amount (₹${cap.toFixed(2)})`,
+      );
+    }
+
+    await this.repo.update(id, {
+      paidAmount: dto.paidAmount,
+      paidAt: new Date(dto.paidAt),
+    });
+
+    return this.repo.findOne({ where: { id } });
   }
 }

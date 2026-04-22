@@ -49,6 +49,12 @@ export class Commission {
   @Column({ nullable: true })
   overriddenAt: Date;
 
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  paidAmount: number;
+
+  @Column({ type: 'date', nullable: true })
+  paidAt: Date;
+
   @CreateDateColumn()
   createdAt: Date;
 

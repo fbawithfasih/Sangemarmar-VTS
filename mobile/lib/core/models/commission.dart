@@ -8,6 +8,8 @@ class Commission {
   final double finalAmount;
   final bool isOverridden;
   final String? overrideReason;
+  final double? paidAmount;
+  final DateTime? paidAt;
   final DateTime createdAt;
 
   const Commission({
@@ -20,6 +22,8 @@ class Commission {
     required this.finalAmount,
     required this.isOverridden,
     this.overrideReason,
+    this.paidAmount,
+    this.paidAt,
     required this.createdAt,
   });
 
@@ -33,8 +37,16 @@ class Commission {
         finalAmount: double.parse(json['finalAmount'].toString()),
         isOverridden: json['isOverridden'] as bool? ?? false,
         overrideReason: json['overrideReason'] as String?,
+        paidAmount: json['paidAmount'] != null
+            ? double.parse(json['paidAmount'].toString())
+            : null,
+        paidAt: json['paidAt'] != null
+            ? DateTime.parse(json['paidAt'] as String).toLocal()
+            : null,
         createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
       );
+
+  bool get isPaid => paidAmount != null && paidAmount! > 0;
 
   String get recipientLabel {
     const labels = {
