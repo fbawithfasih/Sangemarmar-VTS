@@ -193,13 +193,7 @@ class _CommissionCardState extends State<_CommissionCard> {
   @override
   void initState() {
     super.initState();
-    // Back-calculate percentage from existing saved amount
-    final existingPct = widget.netSale > 0 && widget.commission.finalAmount > 0
-        ? (widget.commission.finalAmount / widget.netSale) * 100
-        : 0.0;
-    _pctCtrl = TextEditingController(
-      text: existingPct > 0 ? existingPct.toStringAsFixed(2) : '',
-    );
+    _pctCtrl = TextEditingController();
     _pctCtrl.addListener(() => setState(() {}));
   }
 
