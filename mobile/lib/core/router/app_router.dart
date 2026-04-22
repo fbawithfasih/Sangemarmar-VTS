@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -18,6 +17,10 @@ import '../../features/reports/reports_screen.dart';
 import '../../features/logistics/logistics_screen.dart';
 import '../../features/users/users_screen.dart';
 import '../../features/notifications/notifications_screen.dart';
+import '../../features/module_select/module_select_screen.dart';
+import '../../features/billing/billing_list_screen.dart';
+import '../../features/billing/billing_form_screen.dart';
+import '../../features/billing/billing_detail_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/login',
@@ -27,12 +30,25 @@ final appRouter = GoRouter(
     final isLoginPage = state.matchedLocation == '/login';
 
     if (!isLoggedIn && !isLoginPage) return '/login';
-    if (isLoggedIn && isLoginPage) return '/dashboard';
+    if (isLoggedIn && isLoginPage) {
+      return (auth.user?.isManager ?? false) ? '/module-select' : '/dashboard';
+    }
     return null;
   },
   routes: [
     GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+    GoRoute(path: '/module-select', builder: (_, __) => const ModuleSelectScreen()),
     GoRoute(path: '/dashboard', builder: (_, __) => const DashboardScreen()),
+    GoRoute(path: '/billing', builder: (_, __) => const BillingListScreen()),
+    GoRoute(path: '/billing/new', builder: (_, __) => const BillingFormScreen()),
+    GoRoute(
+      path: '/billing/:id',
+      builder: (_, state) => BillingDetailScreen(orderId: state.pathParameters['id']!),
+    ),
+    GoRoute(
+      path: '/billing/:id/edit',
+      builder: (_, state) => BillingFormScreen(orderId: state.pathParameters['id']),
+    ),
     GoRoute(path: '/vehicles', builder: (_, __) => const VehicleEntryListScreen()),
     GoRoute(path: '/vehicles/new', builder: (_, __) => const VehicleEntryFormScreen()),
     GoRoute(
