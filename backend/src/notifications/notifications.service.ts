@@ -52,6 +52,14 @@ export class NotificationsService {
     await this.repo.update({ isRead: false }, { isRead: true });
   }
 
+  async deleteOne(id: string): Promise<void> {
+    await this.repo.delete(id);
+  }
+
+  async deleteAll(): Promise<void> {
+    await this.repo.clear();
+  }
+
   private async sendTelegram(message: string): Promise<void> {
     const token = this.config.get<string>('TELEGRAM_BOT_TOKEN');
     const chatId = this.config.get<string>('TELEGRAM_CHAT_ID');
