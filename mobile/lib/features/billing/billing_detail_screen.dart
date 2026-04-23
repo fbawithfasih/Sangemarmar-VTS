@@ -265,6 +265,35 @@ class _BillingDetailScreenState extends State<BillingDetailScreen> {
             ),
           ],
         ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.local_shipping),
+            label: const Text('Ship This Order'),
+            onPressed: () => context.push(
+              '/shipping/new',
+              extra: {
+                'billingOrderId': o.id,
+                'buyer': {
+                  'buyerName': o.buyerName,
+                  'buyerAddress': o.buyerAddress,
+                  'buyerCity': o.buyerCity,
+                  'buyerState': o.buyerState,
+                  'buyerZip': o.buyerZip,
+                  'buyerCountry': o.buyerCountry,
+                  'buyerWhatsApp': o.buyerWhatsApp,
+                  'buyerEmail': o.buyerEmail,
+                  'totalUsd': o.totalUsd,
+                },
+              },
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFBF360C),
+              minimumSize: const Size(0, 46),
+            ),
+          ),
+        ),
         const SizedBox(height: 16),
       ],
     );

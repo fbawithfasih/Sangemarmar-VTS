@@ -21,6 +21,9 @@ import '../../features/module_select/module_select_screen.dart';
 import '../../features/billing/billing_list_screen.dart';
 import '../../features/billing/billing_form_screen.dart';
 import '../../features/billing/billing_detail_screen.dart';
+import '../../features/shipping/shipment_list_screen.dart';
+import '../../features/shipping/shipping_form_screen.dart';
+import '../../features/shipping/shipment_detail_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/login',
@@ -48,6 +51,21 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/billing/:id/edit',
       builder: (_, state) => BillingFormScreen(orderId: state.pathParameters['id']),
+    ),
+    GoRoute(path: '/shipping', builder: (_, __) => const ShipmentListScreen()),
+    GoRoute(
+      path: '/shipping/new',
+      builder: (_, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return ShippingFormScreen(
+          billingOrderId: extra?['billingOrderId'] as String?,
+          prefillBuyer: extra?['buyer'] as Map<String, dynamic>?,
+        );
+      },
+    ),
+    GoRoute(
+      path: '/shipping/:id',
+      builder: (_, state) => ShipmentDetailScreen(shipmentId: state.pathParameters['id']!),
     ),
     GoRoute(path: '/vehicles', builder: (_, __) => const VehicleEntryListScreen()),
     GoRoute(path: '/vehicles/new', builder: (_, __) => const VehicleEntryFormScreen()),

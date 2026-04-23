@@ -40,6 +40,22 @@ export enum BillingOrderStatus {
   CONFIRMED = 'CONFIRMED',
 }
 
+export enum ShipmentCarrier {
+  FEDEX = 'FEDEX',
+  DHL = 'DHL',
+  UPS = 'UPS',
+}
+
+export enum ShipmentStatus {
+  LABEL_CREATED = 'LABEL_CREATED',
+  PICKED_UP = 'PICKED_UP',
+  IN_TRANSIT = 'IN_TRANSIT',
+  OUT_FOR_DELIVERY = 'OUT_FOR_DELIVERY',
+  DELIVERED = 'DELIVERED',
+  EXCEPTION = 'EXCEPTION',
+  CANCELLED = 'CANCELLED',
+}
+
 export enum AuditAction {
   VEHICLE_ENTRY_CREATED = 'VEHICLE_ENTRY_CREATED',
   VEHICLE_ENTRY_UPDATED = 'VEHICLE_ENTRY_UPDATED',

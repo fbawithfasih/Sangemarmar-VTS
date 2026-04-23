@@ -13,6 +13,7 @@ import { AuditModule } from './audit/audit.module';
 import { StatementsModule } from './statements/statements.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { BillingModule } from './billing/billing.module';
+import { ShippingModule } from './shipping/shipping.module';
 
 // Entities
 import { User } from './users/entities/user.entity';
@@ -26,6 +27,7 @@ import { AuditLog } from './audit/entities/audit-log.entity';
 import { Notification } from './notifications/entities/notification.entity';
 import { BillingOrder } from './billing/entities/billing-order.entity';
 import { BillingItem } from './billing/entities/billing-item.entity';
+import { Shipment } from './shipping/entities/shipment.entity';
 
 @Module({
   imports: [
@@ -36,7 +38,7 @@ import { BillingItem } from './billing/entities/billing-item.entity';
         const databaseUrl = config.get<string>('DATABASE_URL');
         const base = {
           type: 'postgres' as const,
-          entities: [User, VehicleEntry, Sale, Payment, Commission, CommissionConfig, LogisticsEvent, AuditLog, Notification, BillingOrder, BillingItem],
+          entities: [User, VehicleEntry, Sale, Payment, Commission, CommissionConfig, LogisticsEvent, AuditLog, Notification, BillingOrder, BillingItem, Shipment],
           synchronize: true,
           logging: config.get('NODE_ENV') === 'development',
         };
@@ -65,6 +67,7 @@ import { BillingItem } from './billing/entities/billing-item.entity';
     StatementsModule,
     NotificationsModule,
     BillingModule,
+    ShippingModule,
   ],
 })
 export class AppModule {}
