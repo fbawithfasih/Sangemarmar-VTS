@@ -178,6 +178,7 @@ export class FedexAdapter implements ICarrierAdapter {
           }],
         },
         requestedPackageLineItems: [{
+          sequenceNumber: 1,
           weight: { units: 'KG', value: req.weightKg },
           ...(req.lengthCm && { dimensions: { length: req.lengthCm, width: req.widthCm || 10, height: req.heightCm || 10, units: 'CM' } }),
           declaredValue: { currency: 'USD', amount: req.declaredValueUsd },
