@@ -229,9 +229,19 @@ export class FedexAdapter implements ICarrierAdapter {
       includeDetailedScans: true,
     };
 
-    const res = await this.http.post('/track/v1/trackingnumbers', body, {
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'X-locale': 'en_US' },
-    });
+    let res: any;
+    try {
+      res = await this.http.post('/track/v1/trackingnumbers', body, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'X-locale': 'en_US' },
+      });
+    } catch (err: any) {
+      const fedexErrors: any[] = err?.response?.data?.errors ?? [];
+      const msg = fedexErrors.length
+        ? fedexErrors.map((e: any) => e.message ?? e.code).join('; ')
+        : err?.message ?? 'FedEx tracking request failed';
+      this.logger.error(`FedEx trackShipment error: ${msg}`);
+      throw new BadRequestException(`FedEx: ${msg}`);
+    }
 
     const pkg = res.data?.output?.completeTrackResults?.[0]?.trackResults?.[0];
     if (!pkg) return { status: 'UNKNOWN', statusLabel: 'Unknown', estimatedDelivery: null, events: [] };

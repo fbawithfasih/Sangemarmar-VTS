@@ -67,8 +67,21 @@ export class ShippingController {
   }
 
   @Get(':id/track')
-  track(@Param('id') id: string) {
-    return this.service.track(id);
+  async track(@Param('id') id: string) {
+    try {
+      return await this.service.track(id);
+    } catch (e) {
+      let detail: string;
+      try {
+        detail = e?.response?.data
+          ? JSON.stringify(e.response.data)
+          : e?.message ?? 'Tracking failed';
+      } catch {
+        detail = e?.message ?? 'Tracking failed';
+      }
+      this.logger.error(`track failed: ${detail}`);
+      throw new BadRequestException(detail);
+    }
   }
 
   @Delete(':id')
