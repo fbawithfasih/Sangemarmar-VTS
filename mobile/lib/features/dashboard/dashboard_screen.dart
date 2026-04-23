@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:dio/dio.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/services/api_service.dart';
 import '../../core/constants/api_constants.dart';
@@ -153,7 +154,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               user?.role.replaceAll('_', ' ') ?? '',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
+            const _ExchangeRateChip(),
+            const SizedBox(height: 20),
             Expanded(
               child: ListView.separated(
                 itemCount: items.length,
@@ -161,6 +164,87 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 itemBuilder: (_, i) => _DashCard(item: items[i]),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ExchangeRateChip extends StatefulWidget {
+  const _ExchangeRateChip();
+
+  @override
+  State<_ExchangeRateChip> createState() => _ExchangeRateChipState();
+}
+
+class _ExchangeRateChipState extends State<_ExchangeRateChip> {
+  final _dio = Dio();
+  double? _rate;
+  DateTime? _updatedAt;
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetch();
+  }
+
+  Future<void> _fetch() async {
+    setState(() => _loading = true);
+    try {
+      final res = await _dio.get('https://open.er-api.com/v6/latest/USD');
+      final inr = (res.data['rates']['INR'] as num).toDouble();
+      if (mounted) setState(() { _rate = inr; _updatedAt = DateTime.now(); });
+    } catch (_) {
+      if (mounted) setState(() {});
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rateText = _rate != null
+        ? '1 USD = ₹${_rate!.toStringAsFixed(2)}'
+        : _loading ? 'Fetching rate…' : 'Rate unavailable';
+
+    final timeText = _updatedAt != null
+        ? 'Updated ${_updatedAt!.hour.toString().padLeft(2, '0')}:${_updatedAt!.minute.toString().padLeft(2, '0')}'
+        : '';
+
+    return GestureDetector(
+      onTap: _loading ? null : _fetch,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFF3D5216).withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFF3D5216).withValues(alpha: 0.2)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.currency_exchange, size: 16, color: Color(0xFF3D5216)),
+            const SizedBox(width: 8),
+            Text(
+              rateText,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF3D5216),
+              ),
+            ),
+            if (timeText.isNotEmpty) ...[
+              const SizedBox(width: 6),
+              Text(
+                timeText,
+                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+              ),
+            ],
+            const SizedBox(width: 6),
+            _loading
+                ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 1.5))
+                : Icon(Icons.refresh, size: 14, color: Colors.grey[500]),
           ],
         ),
       ),
