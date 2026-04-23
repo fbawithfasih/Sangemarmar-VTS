@@ -317,6 +317,24 @@ class _CommissionCardState extends State<_CommissionCard> {
                             fontWeight: FontWeight.bold, fontSize: 16)),
                     Text(c.recipientName,
                         style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                    if (c.isOverridden && c.finalAmount > 0) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1B5E20).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'Commission: ${widget.fmt.format(c.finalAmount)}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1B5E20),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
                 Row(
@@ -557,7 +575,7 @@ class _CommissionCardState extends State<_CommissionCard> {
                       style: const TextStyle(
                           fontWeight: FontWeight.bold, fontSize: 16),
                       decoration: InputDecoration(
-                        labelText: 'Amount Paid',
+                        labelText: 'Amount Paid (Max: ${widget.fmt.format(c.finalAmount)})',
                         prefixText: '₹ ',
                         errorText: _paidAmountExceedsCap
                             ? 'Exceeds ₹${c.finalAmount.toStringAsFixed(2)}'
