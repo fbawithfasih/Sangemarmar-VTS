@@ -381,7 +381,7 @@ class _CommissionCardState extends State<_CommissionCard> {
             const SizedBox(height: 14),
 
             // ── Commission % input section ──────────────────────────
-            if (widget.canEdit) ...[
+            if (widget.canEdit && !c.isOverridden) ...[
               Row(
                 children: [
                   Expanded(
