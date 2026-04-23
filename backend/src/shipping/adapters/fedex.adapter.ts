@@ -103,6 +103,8 @@ export class FedexAdapter implements ICarrierAdapter {
 
     for (const detail of rateReplyDetails) {
       const serviceType: string = detail.serviceType;
+      // Freight services require a separate freight account — skip them
+      if (serviceType?.toUpperCase().includes('FREIGHT')) continue;
       const ratedShipment = detail.ratedShipmentDetails?.[0];
       if (!ratedShipment) continue;
 
@@ -145,7 +147,9 @@ export class FedexAdapter implements ICarrierAdapter {
         packagingType: 'YOUR_PACKAGING',
         pickupType: 'DROPOFF_AT_FEDEX_LOCATION',
         totalWeight: req.weightKg,
+        totalPackageCount: 1,
         shipDatestamp: req.shipDate,
+        labelResponseOptions: 'LABEL',
         labelSpecification: {
           labelFormatType: 'COMMON2D',
           imageType: 'PDF',
@@ -181,9 +185,19 @@ export class FedexAdapter implements ICarrierAdapter {
       },
     };
 
-    const res = await this.http.post('/ship/v1/shipments', body, {
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'X-locale': 'en_US' },
-    });
+    let res: any;
+    try {
+      res = await this.http.post('/ship/v1/shipments', body, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'X-locale': 'en_US' },
+      });
+    } catch (err: any) {
+      const fedexErrors: any[] = err?.response?.data?.errors ?? [];
+      const msg = fedexErrors.length
+        ? fedexErrors.map((e: any) => e.message ?? e.code).join('; ')
+        : err?.message ?? 'FedEx booking request failed';
+      this.logger.error(`FedEx createShipment error: ${msg}`, JSON.stringify(err?.response?.data ?? {}));
+      throw new BadRequestException(`FedEx: ${msg}`);
+    }
 
     const output = res.data?.output;
     if (!output?.transactionShipments?.[0]) {

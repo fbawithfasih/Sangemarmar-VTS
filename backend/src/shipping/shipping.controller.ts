@@ -32,7 +32,14 @@ export class ShippingController {
     try {
       return await this.service.create(dto, user);
     } catch (e) {
-      const detail = e?.response?.data ? JSON.stringify(e.response.data) : e?.message ?? 'Carrier error';
+      let detail: string;
+      try {
+        detail = e?.response?.data
+          ? JSON.stringify(e.response.data)
+          : e?.message ?? 'Carrier error';
+      } catch {
+        detail = e?.message ?? 'Carrier error';
+      }
       this.logger.error(`createShipment failed: ${detail}`);
       throw new BadRequestException(detail);
     }
