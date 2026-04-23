@@ -206,7 +206,7 @@ class _ShippingFormScreenState extends State<ShippingFormScreen> {
             Row(children: [
               Expanded(child: _field(_recZipCtrl, 'Zip/Postal Code')),
               const SizedBox(width: 10),
-              Expanded(child: _field(_recCountryCtrl, 'Country Code', hint: 'e.g. US, GB, AE')),
+              Expanded(child: _countryField()),
             ]),
             Row(children: [
               Expanded(child: _field(_recPhoneCtrl, 'Phone', keyboard: TextInputType.phone)),
@@ -353,6 +353,34 @@ class _ShippingFormScreenState extends State<ShippingFormScreen> {
           const SizedBox(width: 8),
           Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: color)),
         ],
+      );
+
+  Widget _countryField() => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: TextFormField(
+          controller: _recCountryCtrl,
+          maxLength: 2,
+          textCapitalization: TextCapitalization.characters,
+          decoration: const InputDecoration(
+            labelText: 'Country Code *',
+            hintText: 'US / GB / AE',
+            counterText: '',
+            helperText: '2-letter ISO code',
+          ),
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) return 'Required';
+            if (v.trim().length != 2) return 'Must be 2 letters (e.g. US)';
+            return null;
+          },
+          onChanged: (v) {
+            if (v.length == 2) {
+              _recCountryCtrl.value = _recCountryCtrl.value.copyWith(
+                text: v.toUpperCase(),
+                selection: TextSelection.collapsed(offset: v.length),
+              );
+            }
+          },
+        ),
       );
 
   Widget _field(TextEditingController ctrl, String label, {TextInputType? keyboard, String? hint}) =>

@@ -65,12 +65,14 @@ export class FedexAdapter implements ICarrierAdapter {
   }
 
   private addr(address: string, city: string, state: string, zip: string, country: string) {
-    const needsState = ['US', 'CA', 'MX', 'IN'].includes(country.toUpperCase());
+    // Normalize to 2-letter ISO (guard against "USA" / "IND" etc.)
+    const iso = country.trim().toUpperCase().substring(0, 2);
+    const needsState = ['US', 'CA', 'MX', 'IN'].includes(iso);
     return {
       streetLines: [address],
       city,
       postalCode: zip,
-      countryCode: country.toUpperCase(),
+      countryCode: iso,
       ...(needsState && state ? { stateOrProvinceCode: state.substring(0, 2).toUpperCase() } : {}),
     };
   }
