@@ -134,6 +134,7 @@ export class FedexAdapter implements ICarrierAdapter {
     const totalQty = 1;
     const body = {
       accountNumber: { value: this.accountNumber },
+      labelResponseOptions: 'LABEL',
       requestedShipment: {
         shipper: {
           contact: { personName: req.shipper.name, phoneNumber: req.shipper.phone },
@@ -149,7 +150,6 @@ export class FedexAdapter implements ICarrierAdapter {
         totalWeight: req.weightKg,
         totalPackageCount: 1,
         shipDatestamp: req.shipDate,
-        labelResponseOptions: 'LABEL',
         labelSpecification: {
           labelFormatType: 'COMMON2D',
           imageType: 'PDF',
