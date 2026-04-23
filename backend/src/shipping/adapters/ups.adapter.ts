@@ -27,14 +27,18 @@ const HS_CODE = '6802.91';
 @Injectable()
 export class UpsAdapter implements ICarrierAdapter {
   private readonly http: AxiosInstance;
+  private readonly authHttp: AxiosInstance;
   private readonly accountNumber: string;
   private tokenCache: { token: string; expiresAt: number } | null = null;
 
   constructor(private readonly config: ConfigService) {
     const sandbox = config.get<string>('UPS_SANDBOX', 'true') === 'true';
-    const baseURL = sandbox ? 'https://wwwcie.ups.com/api' : 'https://onlinetools.ups.com/api';
+    // API calls use /api prefix; OAuth does NOT — separate instances required
+    const apiBase = sandbox ? 'https://wwwcie.ups.com/api' : 'https://onlinetools.ups.com/api';
+    const authBase = sandbox ? 'https://wwwcie.ups.com' : 'https://onlinetools.ups.com';
 
-    this.http = axios.create({ baseURL, timeout: 30000 });
+    this.http = axios.create({ baseURL: apiBase, timeout: 30000 });
+    this.authHttp = axios.create({ baseURL: authBase, timeout: 30000 });
     this.accountNumber = config.get<string>('UPS_ACCOUNT_NUMBER', '');
   }
 
@@ -48,7 +52,7 @@ export class UpsAdapter implements ICarrierAdapter {
     const encoded = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
     const params = new URLSearchParams({ grant_type: 'client_credentials' });
 
-    const res = await this.http.post('/security/v1/oauth/token', params.toString(), {
+    const res = await this.authHttp.post('/security/v1/oauth/token', params.toString(), {
       headers: {
         Authorization: `Basic ${encoded}`,
         'Content-Type': 'application/x-www-form-urlencoded',

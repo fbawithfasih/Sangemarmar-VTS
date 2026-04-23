@@ -56,6 +56,7 @@ export class FedexAdapter implements ICarrierAdapter {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
 
+    this.logger.log(`FedEx token obtained, expires_in=${res.data.expires_in}s`);
     this.tokenCache = {
       token: res.data.access_token,
       expiresAt: Date.now() + (res.data.expires_in - 60) * 1000,
