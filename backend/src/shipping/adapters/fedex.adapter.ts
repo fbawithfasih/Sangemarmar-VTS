@@ -194,7 +194,12 @@ export class FedexAdapter implements ICarrierAdapter {
     } catch (err: any) {
       const fedexErrors: any[] = err?.response?.data?.errors ?? [];
       const msg = fedexErrors.length
-        ? fedexErrors.map((e: any) => e.message ?? e.code).join('; ')
+        ? fedexErrors.map((e: any) => {
+            const base = e.message ?? e.code ?? 'Unknown error';
+            const params: any[] = e.parameterList ?? [];
+            const detail = params.map((p: any) => p.value ?? p.key).filter(Boolean).join(', ');
+            return detail ? `${base}: ${detail}` : base;
+          }).join('; ')
         : err?.message ?? 'FedEx booking request failed';
       this.logger.error(`FedEx createShipment error: ${msg}`, JSON.stringify(err?.response?.data ?? {}));
       throw new BadRequestException(`FedEx: ${msg}`);
