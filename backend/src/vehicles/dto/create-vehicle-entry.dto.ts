@@ -9,9 +9,17 @@ export class CreateVehicleEntryDto {
   @IsString()
   driverName: string;
 
+  @IsOptional()
+  @IsString()
+  driverMobile?: string;
+
   @IsNotEmpty()
   @IsString()
   guideName: string;
+
+  @IsOptional()
+  @IsString()
+  guideMobile?: string;
 
   @IsNotEmpty()
   @IsString()

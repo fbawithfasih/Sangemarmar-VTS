@@ -2,7 +2,9 @@ class VehicleEntry {
   final String id;
   final String vehicleNumber;
   final String driverName;
+  final String? driverMobile;
   final String guideName;
+  final String? guideMobile;
   final String localAgent;
   final String companyName;
   final DateTime entryDate;
@@ -14,7 +16,9 @@ class VehicleEntry {
     required this.id,
     required this.vehicleNumber,
     required this.driverName,
+    this.driverMobile,
     required this.guideName,
+    this.guideMobile,
     required this.localAgent,
     required this.companyName,
     required this.entryDate,
@@ -27,7 +31,9 @@ class VehicleEntry {
         id: json['id'] as String,
         vehicleNumber: json['vehicleNumber'] as String,
         driverName: json['driverName'] as String,
+        driverMobile: json['driverMobile'] as String?,
         guideName: json['guideName'] as String,
+        guideMobile: json['guideMobile'] as String?,
         localAgent: json['localAgent'] as String,
         companyName: json['companyName'] as String,
         entryDate: DateTime.parse(json['entryDate'] as String).toLocal(),

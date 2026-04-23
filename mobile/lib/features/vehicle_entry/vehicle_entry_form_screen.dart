@@ -20,7 +20,9 @@ class _VehicleEntryFormScreenState extends State<VehicleEntryFormScreen> {
 
   final _vehicleNumberCtrl = TextEditingController();
   final _driverNameCtrl = TextEditingController();
+  final _driverMobileCtrl = TextEditingController();
   final _guideNameCtrl = TextEditingController();
+  final _guideMobileCtrl = TextEditingController();
   final _localAgentCtrl = TextEditingController();
   final _companyNameCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
@@ -42,7 +44,9 @@ class _VehicleEntryFormScreenState extends State<VehicleEntryFormScreen> {
       final data = res.data as Map<String, dynamic>;
       _vehicleNumberCtrl.text = data['vehicleNumber'] ?? '';
       _driverNameCtrl.text = data['driverName'] ?? '';
+      _driverMobileCtrl.text = data['driverMobile'] ?? '';
       _guideNameCtrl.text = data['guideName'] ?? '';
+      _guideMobileCtrl.text = data['guideMobile'] ?? '';
       _localAgentCtrl.text = data['localAgent'] ?? '';
       _companyNameCtrl.text = data['companyName'] ?? '';
       _notesCtrl.text = data['notes'] ?? '';
@@ -56,7 +60,9 @@ class _VehicleEntryFormScreenState extends State<VehicleEntryFormScreen> {
   void dispose() {
     _vehicleNumberCtrl.dispose();
     _driverNameCtrl.dispose();
+    _driverMobileCtrl.dispose();
     _guideNameCtrl.dispose();
+    _guideMobileCtrl.dispose();
     _localAgentCtrl.dispose();
     _companyNameCtrl.dispose();
     _notesCtrl.dispose();
@@ -70,7 +76,9 @@ class _VehicleEntryFormScreenState extends State<VehicleEntryFormScreen> {
     final payload = {
       'vehicleNumber': _vehicleNumberCtrl.text.trim(),
       'driverName': _driverNameCtrl.text.trim(),
+      'driverMobile': _driverMobileCtrl.text.trim().isEmpty ? null : _driverMobileCtrl.text.trim(),
       'guideName': _guideNameCtrl.text.trim(),
+      'guideMobile': _guideMobileCtrl.text.trim().isEmpty ? null : _guideMobileCtrl.text.trim(),
       'localAgent': _localAgentCtrl.text.trim(),
       'companyName': _companyNameCtrl.text.trim(),
       'notes': _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
@@ -120,8 +128,12 @@ class _VehicleEntryFormScreenState extends State<VehicleEntryFormScreen> {
                     _buildField(_vehicleNumberCtrl, 'Vehicle Number', Icons.pin, required: true),
                     const SizedBox(height: 16),
                     _buildField(_driverNameCtrl, 'Driver Name', Icons.person, required: true),
+                    const SizedBox(height: 12),
+                    _buildField(_driverMobileCtrl, 'Driver Mobile', Icons.phone, keyboardType: TextInputType.phone),
                     const SizedBox(height: 16),
                     _buildField(_guideNameCtrl, 'Guide Name', Icons.person_outline, required: true),
+                    const SizedBox(height: 12),
+                    _buildField(_guideMobileCtrl, 'Guide Mobile', Icons.phone_outlined, keyboardType: TextInputType.phone),
                     const SizedBox(height: 16),
                     _buildField(_localAgentCtrl, 'Local Agent', Icons.support_agent, required: true),
                     const SizedBox(height: 16),
@@ -153,9 +165,11 @@ class _VehicleEntryFormScreenState extends State<VehicleEntryFormScreen> {
     );
   }
 
-  Widget _buildField(TextEditingController ctrl, String label, IconData icon, {bool required = false}) {
+  Widget _buildField(TextEditingController ctrl, String label, IconData icon,
+      {bool required = false, TextInputType? keyboardType}) {
     return TextFormField(
       controller: ctrl,
+      keyboardType: keyboardType,
       decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
       validator: required ? (v) => v == null || v.trim().isEmpty ? '$label is required' : null : null,
     );

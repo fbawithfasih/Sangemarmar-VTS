@@ -17,8 +17,14 @@ export class VehicleEntry {
   @Column()
   driverName: string;
 
+  @Column({ nullable: true })
+  driverMobile: string;
+
   @Column()
   guideName: string;
+
+  @Column({ nullable: true })
+  guideMobile: string;
 
   @Column()
   localAgent: string;
