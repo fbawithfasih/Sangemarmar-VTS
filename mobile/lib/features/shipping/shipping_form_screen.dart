@@ -160,8 +160,18 @@ class _ShippingFormScreenState extends State<ShippingFormScreen> {
       if (mounted) context.pushReplacement('/shipping/$id');
     } catch (e) {
       if (mounted) {
+        String msg = 'Booking failed';
+        try {
+          final data = (e as dynamic).response?.data;
+          if (data is Map) msg = data['message']?.toString() ?? msg;
+          else if (data is String) msg = data;
+        } catch (_) {}
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Booking failed: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 8),
+          ),
         );
       }
     }

@@ -1,6 +1,7 @@
 import {
   Controller, Get, Post, Delete,
   Body, Param, Query, Res, UseGuards,
+  BadRequestException, Logger,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { ShippingService } from './shipping.service';
@@ -18,6 +19,7 @@ import { UserRole } from '../common/enums';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN, UserRole.MANAGER)
 export class ShippingController {
+  private readonly logger = new Logger(ShippingController.name);
   constructor(private readonly service: ShippingService) {}
 
   @Post('rates')
@@ -26,8 +28,14 @@ export class ShippingController {
   }
 
   @Post()
-  create(@Body() dto: CreateShipmentDto, @CurrentUser() user: User) {
-    return this.service.create(dto, user);
+  async create(@Body() dto: CreateShipmentDto, @CurrentUser() user: User) {
+    try {
+      return await this.service.create(dto, user);
+    } catch (e) {
+      const detail = e?.response?.data ? JSON.stringify(e.response.data) : e?.message ?? 'Carrier error';
+      this.logger.error(`createShipment failed: ${detail}`);
+      throw new BadRequestException(detail);
+    }
   }
 
   @Get()
