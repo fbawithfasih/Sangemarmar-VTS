@@ -164,7 +164,7 @@ export class FedexAdapter implements ICarrierAdapter {
             paymentType: 'SENDER',
             payor: { responsibleParty: { accountNumber: { value: this.accountNumber } } },
           },
-          customsValue: { currency: 'USD', amount: req.declaredValueUsd },
+          customsValue: { currency: 'USD', amount: String(req.declaredValueUsd) },
           commodities: [{
             description: req.contentsDescription,
             countryOfManufacture: 'IN',
@@ -173,7 +173,7 @@ export class FedexAdapter implements ICarrierAdapter {
             numberOfPieces: totalQty,
             quantity: totalQty,
             quantityUnits: 'PCS',
-            unitPrice: { currency: 'USD', amount: req.declaredValueUsd },
+            unitPrice: { currency: 'USD', amount: String(req.declaredValueUsd) },
             weight: { units: 'KG', value: req.weightKg },
           }],
         },
@@ -181,7 +181,7 @@ export class FedexAdapter implements ICarrierAdapter {
           sequenceNumber: 1,
           weight: { units: 'KG', value: req.weightKg },
           ...(req.lengthCm && { dimensions: { length: req.lengthCm, width: req.widthCm || 10, height: req.heightCm || 10, units: 'CM' } }),
-          declaredValue: { currency: 'USD', amount: req.declaredValueUsd },
+          declaredValue: { currency: 'USD', amount: String(req.declaredValueUsd) },
         }],
       },
     };
