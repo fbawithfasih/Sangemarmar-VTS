@@ -45,6 +45,7 @@ class _ShippingFormScreenState extends State<ShippingFormScreen> {
   List<RateQuote> _quotes = [];
   RateQuote? _selectedQuote;
   String? _rateError;
+  List<Map<String, String>> _carrierErrors = [];
 
   @override
   void initState() {
@@ -89,7 +90,7 @@ class _ShippingFormScreenState extends State<ShippingFormScreen> {
 
   Future<void> _getRates() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() { _fetchingRates = true; _quotes = []; _selectedQuote = null; _rateError = null; });
+    setState(() { _fetchingRates = true; _quotes = []; _selectedQuote = null; _rateError = null; _carrierErrors = []; });
 
     try {
       final body = {
@@ -106,16 +107,22 @@ class _ShippingFormScreenState extends State<ShippingFormScreen> {
       final res = await _api.post(ApiConstants.shippingRates, data: body);
       final groups = res.data as List;
       final quotes = <RateQuote>[];
+      final errors = <Map<String, String>>[];
       for (final group in groups) {
-        final groupQuotes = (group['quotes'] as List)
+        final g = group as Map<String, dynamic>;
+        final carrier = g['carrier'] as String;
+        if (g['error'] != null) {
+          errors.add({'carrier': carrier, 'message': g['error'] as String});
+        }
+        final groupQuotes = (g['quotes'] as List? ?? [])
             .map((q) => RateQuote.fromJson(q as Map<String, dynamic>))
             .toList();
         quotes.addAll(groupQuotes);
       }
       quotes.sort((a, b) => a.costUsd.compareTo(b.costUsd));
-      setState(() => _quotes = quotes);
+      setState(() { _quotes = quotes; _carrierErrors = errors; });
     } catch (e) {
-      setState(() => _rateError = 'Failed to fetch rates. Check carrier credentials.');
+      setState(() => _rateError = 'Request failed: $e');
     }
     setState(() => _fetchingRates = false);
   }
@@ -276,7 +283,31 @@ class _ShippingFormScreenState extends State<ShippingFormScreen> {
 
             if (_rateError != null) ...[
               const SizedBox(height: 10),
-              Text(_rateError!, style: const TextStyle(color: Colors.red, fontSize: 13)),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: Colors.red.shade50, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.red.shade200)),
+                child: Text(_rateError!, style: TextStyle(color: Colors.red.shade700, fontSize: 13)),
+              ),
+            ],
+            if (_carrierErrors.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              ..._carrierErrors.map((e) => Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.orange.shade200)),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(color: Colors.orange.shade700, borderRadius: BorderRadius.circular(4)),
+                      child: Text(e['carrier']!, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(e['message']!, style: TextStyle(color: Colors.orange.shade800, fontSize: 12))),
+                  ],
+                ),
+              )),
             ],
 
             if (_quotes.isNotEmpty) ...[

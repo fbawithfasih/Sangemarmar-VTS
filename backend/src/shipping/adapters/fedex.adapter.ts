@@ -63,13 +63,24 @@ export class FedexAdapter implements ICarrierAdapter {
     return this.tokenCache.token;
   }
 
+  private addr(address: string, city: string, state: string, zip: string, country: string) {
+    const needsState = ['US', 'CA', 'MX', 'IN'].includes(country.toUpperCase());
+    return {
+      streetLines: [address],
+      city,
+      postalCode: zip,
+      countryCode: country.toUpperCase(),
+      ...(needsState && state ? { stateOrProvinceCode: state.substring(0, 2).toUpperCase() } : {}),
+    };
+  }
+
   async getRates(req: Omit<ShipmentRequest, 'carrier' | 'serviceCode'>): Promise<RateQuote[]> {
     const token = await this.getToken();
     const body = {
       accountNumber: { value: this.accountNumber },
       requestedShipment: {
-        shipper: { address: { streetLines: [req.shipper.address], city: req.shipper.city, stateOrProvinceCode: req.shipper.state, postalCode: req.shipper.zip, countryCode: req.shipper.country } },
-        recipient: { address: { streetLines: [req.recipient.address], city: req.recipient.city, stateOrProvinceCode: req.recipient.state, postalCode: req.recipient.zip, countryCode: req.recipient.country } },
+        shipper: { address: this.addr(req.shipper.address, req.shipper.city, req.shipper.state, req.shipper.zip, req.shipper.country) },
+        recipient: { address: this.addr(req.recipient.address, req.recipient.city, req.recipient.state, req.recipient.zip, req.recipient.country) },
         pickupType: 'DROPOFF_AT_FEDEX_LOCATION',
         shipDateStamp: req.shipDate,
         rateRequestType: ['ACCOUNT', 'LIST'],
@@ -121,11 +132,11 @@ export class FedexAdapter implements ICarrierAdapter {
       requestedShipment: {
         shipper: {
           contact: { personName: req.shipper.name, phoneNumber: req.shipper.phone },
-          address: { streetLines: [req.shipper.address], city: req.shipper.city, stateOrProvinceCode: req.shipper.state, postalCode: req.shipper.zip, countryCode: req.shipper.country },
+          address: this.addr(req.shipper.address, req.shipper.city, req.shipper.state, req.shipper.zip, req.shipper.country),
         },
         recipients: [{
           contact: { personName: req.recipient.name, phoneNumber: req.recipient.phone, emailAddress: req.recipient.email },
-          address: { streetLines: [req.recipient.address], city: req.recipient.city, stateOrProvinceCode: req.recipient.state, postalCode: req.recipient.zip, countryCode: req.recipient.country },
+          address: this.addr(req.recipient.address, req.recipient.city, req.recipient.state, req.recipient.zip, req.recipient.country),
         }],
         serviceType: req.serviceCode,
         packagingType: 'YOUR_PACKAGING',

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -19,6 +19,7 @@ function istDayEnd(d: string): Date { return new Date(`${d}T23:59:59.999+05:30`)
 
 @Injectable()
 export class ShippingService {
+  private readonly logger = new Logger(ShippingService.name);
   private readonly adapters: Record<string, ICarrierAdapter>;
   private readonly shipper: {
     name: string; address: string; city: string; state: string; zip: string; country: string; phone: string;
@@ -50,7 +51,7 @@ export class ShippingService {
     return adapter;
   }
 
-  async getRates(dto: GetRatesDto): Promise<{ carrier: string; quotes: RateQuote[] }[]> {
+  async getRates(dto: GetRatesDto): Promise<{ carrier: string; quotes: RateQuote[]; error?: string }[]> {
     let recipient = { name: '', address: '', city: '', state: '', zip: '', country: '', phone: '', email: '' };
 
     if (dto.billingOrderId) {
@@ -86,9 +87,16 @@ export class ShippingService {
       this.ups.getRates(req).then((q) => ({ carrier: 'UPS', quotes: q })),
     ]);
 
-    return results
-      .filter((r): r is PromiseFulfilledResult<{ carrier: string; quotes: RateQuote[] }> => r.status === 'fulfilled')
-      .map((r) => r.value);
+    return results.map((r, i) => {
+      const label = ['FEDEX', 'DHL', 'UPS'][i];
+      if (r.status === 'fulfilled') return r.value;
+      const err = r.reason;
+      const detail = err?.response?.data
+        ? JSON.stringify(err.response.data)
+        : err?.message ?? 'Unknown error';
+      this.logger.error(`${label} rates failed: ${detail}`);
+      return { carrier: label, quotes: [], error: detail };
+    });
   }
 
   async create(dto: CreateShipmentDto, user: User): Promise<Shipment> {
