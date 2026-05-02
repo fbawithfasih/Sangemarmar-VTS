@@ -120,7 +120,11 @@ class _VehicleEntryListScreenState extends State<VehicleEntryListScreen> {
                                     subtitle: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text('${e.driverName} • ${e.companyName}'),
+                                        Text('Driver: ${e.driverName}  •  Guide: ${e.guideName}'),
+                                        Text(
+                                          e.companyName,
+                                          style: const TextStyle(fontSize: 12),
+                                        ),
                                         Text(
                                           DateFormat('dd MMM yyyy, HH:mm').format(e.entryDate),
                                           style: const TextStyle(fontSize: 12, color: Colors.grey),
