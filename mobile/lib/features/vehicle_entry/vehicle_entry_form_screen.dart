@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/services/api_service.dart';
 import '../../core/constants/api_constants.dart';
+import '../../core/utils/uppercase_formatter.dart';
 import '../../core/widgets/app_bar.dart';
 
 class VehicleEntryFormScreen extends StatefulWidget {
@@ -146,6 +147,8 @@ class _VehicleEntryFormScreenState extends State<VehicleEntryFormScreen> {
                         prefixIcon: Icon(Icons.notes),
                       ),
                       maxLines: 3,
+                      textCapitalization: TextCapitalization.characters,
+                      inputFormatters: [UpperCaseTextFormatter()],
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: 12),
@@ -167,9 +170,12 @@ class _VehicleEntryFormScreenState extends State<VehicleEntryFormScreen> {
 
   Widget _buildField(TextEditingController ctrl, String label, IconData icon,
       {bool required = false, TextInputType? keyboardType}) {
+    final isPhone = keyboardType == TextInputType.phone;
     return TextFormField(
       controller: ctrl,
       keyboardType: keyboardType,
+      textCapitalization: isPhone ? TextCapitalization.none : TextCapitalization.characters,
+      inputFormatters: isPhone ? null : [UpperCaseTextFormatter()],
       decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
       validator: required ? (v) => v == null || v.trim().isEmpty ? '$label is required' : null : null,
     );

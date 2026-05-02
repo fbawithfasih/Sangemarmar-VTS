@@ -154,8 +154,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               user?.role.replaceAll('_', ' ') ?? '',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey),
             ),
-            const SizedBox(height: 12),
-            const _ExchangeRateChip(),
+            if (!(user?.isGateOperator ?? false)) ...[
+              const SizedBox(height: 12),
+              const _ExchangeRateChip(),
+            ],
             const SizedBox(height: 20),
             Expanded(
               child: ListView.separated(

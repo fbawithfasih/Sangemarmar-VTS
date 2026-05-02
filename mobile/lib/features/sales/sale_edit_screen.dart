@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/models/sale.dart';
 import '../../core/services/api_service.dart';
 import '../../core/constants/api_constants.dart';
+import '../../core/utils/uppercase_formatter.dart';
 import '../../core/widgets/app_bar.dart';
 
 class SaleEditScreen extends StatefulWidget {
@@ -138,6 +139,8 @@ class _SaleEditScreenState extends State<SaleEditScreen> {
                         labelText: 'Salesperson',
                         prefixIcon: Icon(Icons.person),
                       ),
+                      textCapitalization: TextCapitalization.characters,
+                      inputFormatters: [UpperCaseTextFormatter()],
                       validator: (v) =>
                           v == null || v.trim().isEmpty ? 'Required' : null,
                     ),
@@ -162,6 +165,8 @@ class _SaleEditScreenState extends State<SaleEditScreen> {
                         prefixIcon: Icon(Icons.notes),
                       ),
                       maxLines: 2,
+                      textCapitalization: TextCapitalization.characters,
+                      inputFormatters: [UpperCaseTextFormatter()],
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: 12),

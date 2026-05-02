@@ -6,6 +6,7 @@ import '../../core/models/sale.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/services/api_service.dart';
 import '../../core/constants/api_constants.dart';
+import '../../core/utils/uppercase_formatter.dart';
 import '../../core/widgets/app_bar.dart';
 
 class CommissionScreen extends StatefulWidget {
@@ -94,7 +95,12 @@ class _CommissionScreenState extends State<CommissionScreen> {
     if (mounted) setState(() => _saving[commission.id] = false);
   }
 
-  Future<void> _recordPayment(Commission commission, double paidAmount, DateTime paidAt) async {
+  Future<void> _recordPayment(
+    Commission commission,
+    double paidAmount,
+    DateTime paidAt,
+    String? paidNote,
+  ) async {
     setState(() => _paying[commission.id] = true);
     try {
       await _api.patch(
@@ -102,6 +108,7 @@ class _CommissionScreenState extends State<CommissionScreen> {
         data: {
           'paidAmount': paidAmount,
           'paidAt': paidAt.toIso8601String().split('T').first,
+          if (paidNote != null && paidNote.trim().isNotEmpty) 'paidNote': paidNote.trim(),
         },
       );
       if (mounted) {
@@ -190,7 +197,7 @@ class _CommissionScreenState extends State<CommissionScreen> {
                             canEdit: canEdit,
                             fmt: _fmt,
                             onSave: (amount) => _save(c, amount),
-                            onPay: (amount, date) => _recordPayment(c, amount, date),
+                            onPay: (amount, date, note) => _recordPayment(c, amount, date, note),
                           );
                         },
                       ),
@@ -209,7 +216,7 @@ class _CommissionCard extends StatefulWidget {
   final bool canEdit;
   final NumberFormat fmt;
   final void Function(double amount) onSave;
-  final void Function(double amount, DateTime date) onPay;
+  final void Function(double amount, DateTime date, String? note) onPay;
 
   const _CommissionCard({
     super.key,
@@ -230,6 +237,7 @@ class _CommissionCard extends StatefulWidget {
 class _CommissionCardState extends State<_CommissionCard> {
   late final TextEditingController _pctCtrl;
   late final TextEditingController _paidAmountCtrl;
+  late final TextEditingController _paidNoteCtrl;
   DateTime _paidAt = DateTime.now();
   final _dateFmt = DateFormat('dd MMM yyyy');
 
@@ -251,12 +259,14 @@ class _CommissionCardState extends State<_CommissionCard> {
     _pctCtrl.addListener(() => setState(() {}));
     _paidAmountCtrl = TextEditingController();
     _paidAmountCtrl.addListener(() => setState(() {}));
+    _paidNoteCtrl = TextEditingController(text: widget.commission.paidNote ?? '');
   }
 
   @override
   void dispose() {
     _pctCtrl.dispose();
     _paidAmountCtrl.dispose();
+    _paidNoteCtrl.dispose();
     super.dispose();
   }
 
@@ -290,7 +300,7 @@ class _CommissionCardState extends State<_CommissionCard> {
       );
       return;
     }
-    widget.onPay(amount, _paidAt);
+    widget.onPay(amount, _paidAt, _paidNoteCtrl.text);
   }
 
   @override
@@ -530,6 +540,17 @@ class _CommissionCardState extends State<_CommissionCard> {
                             Text('on ${_dateFmt.format(c.paidAt!)}',
                                 style: TextStyle(
                                     fontSize: 12, color: Colors.blue.shade600)),
+                            if ((c.paidNote ?? '').isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'Note: ${c.paidNote}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontStyle: FontStyle.italic,
+                                  color: Colors.blue.shade700,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -650,6 +671,32 @@ class _CommissionCardState extends State<_CommissionCard> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _paidNoteCtrl,
+                maxLines: 2,
+                textCapitalization: TextCapitalization.characters,
+                inputFormatters: [UpperCaseTextFormatter()],
+                decoration: InputDecoration(
+                  labelText: 'Note (optional)',
+                  hintText: 'e.g. COLLECTED BY DRIVER ON BEHALF OF GUIDE',
+                  prefixIcon: const Icon(Icons.note_alt_outlined, size: 18),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFF1565C0), width: 2),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                ),
               ),
               const SizedBox(height: 10),
               SizedBox(

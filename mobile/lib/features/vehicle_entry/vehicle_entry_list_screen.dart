@@ -6,6 +6,7 @@ import '../../core/models/vehicle_entry.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/services/api_service.dart';
 import '../../core/constants/api_constants.dart';
+import '../../core/utils/uppercase_formatter.dart';
 import '../../core/widgets/app_bar.dart';
 
 class VehicleEntryListScreen extends StatefulWidget {
@@ -73,6 +74,8 @@ class _VehicleEntryListScreenState extends State<VehicleEntryListScreen> {
             padding: const EdgeInsets.all(12),
             child: TextField(
               controller: _searchCtrl,
+              textCapitalization: TextCapitalization.characters,
+              inputFormatters: [UpperCaseTextFormatter()],
               decoration: InputDecoration(
                 hintText: 'Search by vehicle number...',
                 prefixIcon: const Icon(Icons.search),
@@ -232,6 +235,7 @@ class _VehicleEntryListScreenState extends State<VehicleEntryListScreen> {
   void _showEntryActions(BuildContext context, VehicleEntry entry) {
     final user = context.read<AuthProvider>().user;
     final isAdmin = user?.isAdmin ?? false;
+    final isGateOperator = user?.isGateOperator ?? false;
     final canComplete = (user?.isManager ?? false) && entry.status != 'COMPLETED';
 
     showModalBottomSheet(
@@ -252,22 +256,24 @@ class _VehicleEntryListScreenState extends State<VehicleEntryListScreen> {
             const SizedBox(height: 4),
             Text('${entry.driverName} | ${entry.companyName}', style: const TextStyle(color: Colors.grey)),
             const Divider(height: 24),
-            ListTile(
-              leading: const Icon(Icons.point_of_sale, color: Color(0xFF2E7D32)),
-              title: const Text('Create Sale'),
-              onTap: () {
-                Navigator.pop(context);
-                context.push('/sales/new?vehicleEntryId=${entry.id}').then((_) => _load());
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.timeline, color: Color(0xFF1565C0)),
-              title: const Text('View Logistics Timeline'),
-              onTap: () {
-                Navigator.pop(context);
-                context.push('/logistics/${entry.id}');
-              },
-            ),
+            if (!isGateOperator)
+              ListTile(
+                leading: const Icon(Icons.point_of_sale, color: Color(0xFF2E7D32)),
+                title: const Text('Create Sale'),
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/sales/new?vehicleEntryId=${entry.id}').then((_) => _load());
+                },
+              ),
+            if (!isGateOperator)
+              ListTile(
+                leading: const Icon(Icons.timeline, color: Color(0xFF1565C0)),
+                title: const Text('View Logistics Timeline'),
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/logistics/${entry.id}');
+                },
+              ),
             if (canComplete)
               ListTile(
                 leading: const Icon(Icons.check_circle, color: Colors.green),

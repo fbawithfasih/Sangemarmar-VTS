@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/services/api_service.dart';
 import '../../core/constants/api_constants.dart';
+import '../../core/utils/uppercase_formatter.dart';
 import '../../core/widgets/app_bar.dart';
 
 const _roles = ['ADMIN', 'MANAGER', 'GATE_OPERATOR', 'SALES_STAFF', 'CASHIER'];
@@ -102,6 +103,8 @@ class _UsersScreenState extends State<UsersScreen> {
                   TextFormField(
                     controller: nameCtrl,
                     decoration: const InputDecoration(labelText: 'Full Name'),
+                    textCapitalization: TextCapitalization.characters,
+                    inputFormatters: [UpperCaseTextFormatter()],
                     validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                   ),
                   const SizedBox(height: 12),

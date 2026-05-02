@@ -1,4 +1,4 @@
-import { IsDateString, IsNumber, Min } from 'class-validator';
+import { IsDateString, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
 export class RecordCommissionPaymentDto {
   @IsNumber()
@@ -7,4 +7,9 @@ export class RecordCommissionPaymentDto {
 
   @IsDateString()
   paidAt: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  paidNote?: string;
 }

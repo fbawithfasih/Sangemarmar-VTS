@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/services/api_service.dart';
@@ -46,9 +47,16 @@ class _ShipmentDetailScreenState extends State<ShipmentDetailScreen> {
       setState(() => _trackResult = res.data as Map<String, dynamic>);
       await _load();
     } catch (e) {
+      String msg = 'Tracking failed';
+      if (e is DioException) {
+        final data = e.response?.data;
+        if (data is Map<String, dynamic> && data['message'] != null) {
+          msg = data['message'] as String;
+        }
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Tracking failed: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(msg), backgroundColor: Colors.red),
         );
       }
     }

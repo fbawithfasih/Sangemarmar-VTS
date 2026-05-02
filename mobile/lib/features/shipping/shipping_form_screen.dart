@@ -1,8 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/services/api_service.dart';
 import '../../core/constants/api_constants.dart';
+import '../../core/utils/uppercase_formatter.dart';
 import '../../core/widgets/app_bar.dart';
 import 'models/shipment.dart';
 
@@ -27,7 +30,7 @@ class _ShippingFormScreenState extends State<ShippingFormScreen> {
   final _widthCtrl = TextEditingController();
   final _heightCtrl = TextEditingController();
   final _valueCtrl = TextEditingController();
-  final _contentsCtrl = TextEditingController(text: 'Marble Handicrafts');
+  final _contentsCtrl = TextEditingController(text: 'MARBLE HANDICRAFTS');
   DateTime _shipDate = DateTime.now();
 
   // Recipient (pre-filled from billing order)
@@ -56,12 +59,12 @@ class _ShippingFormScreenState extends State<ShippingFormScreen> {
   void _prefill() {
     final b = widget.prefillBuyer;
     if (b == null) return;
-    _recNameCtrl.text = (b['buyerName'] as String?) ?? '';
-    _recAddressCtrl.text = (b['buyerAddress'] as String?) ?? '';
-    _recCityCtrl.text = (b['buyerCity'] as String?) ?? '';
-    _recStateCtrl.text = (b['buyerState'] as String?) ?? '';
-    _recZipCtrl.text = (b['buyerZip'] as String?) ?? '';
-    _recCountryCtrl.text = (b['buyerCountry'] as String?) ?? '';
+    _recNameCtrl.text = ((b['buyerName'] as String?) ?? '').toUpperCase();
+    _recAddressCtrl.text = ((b['buyerAddress'] as String?) ?? '').toUpperCase();
+    _recCityCtrl.text = ((b['buyerCity'] as String?) ?? '').toUpperCase();
+    _recStateCtrl.text = ((b['buyerState'] as String?) ?? '').toUpperCase();
+    _recZipCtrl.text = ((b['buyerZip'] as String?) ?? '').toUpperCase();
+    _recCountryCtrl.text = ((b['buyerCountry'] as String?) ?? '').toUpperCase();
     _recPhoneCtrl.text = (b['buyerWhatsApp'] as String?) ?? '';
     _recEmailCtrl.text = (b['buyerEmail'] as String?) ?? '';
     final totalUsd = b['totalUsd'] as double?;
@@ -129,6 +132,7 @@ class _ShippingFormScreenState extends State<ShippingFormScreen> {
 
   Future<void> _book() async {
     if (_selectedQuote == null) return;
+    if (!_formKey.currentState!.validate()) return;
     setState(() => _booking = true);
 
     try {
@@ -163,8 +167,28 @@ class _ShippingFormScreenState extends State<ShippingFormScreen> {
         String msg = 'Booking failed';
         try {
           final data = (e as dynamic).response?.data;
-          if (data is Map) msg = data['message']?.toString() ?? msg;
-          else if (data is String) msg = data;
+          if (data is Map) {
+            final raw = data['message']?.toString() ?? data['error']?.toString() ?? '';
+            // Backend may forward a JSON-stringified carrier error — unwrap it
+            if (raw.startsWith('{') || raw.startsWith('[')) {
+              try {
+                final parsed = jsonDecode(raw);
+                if (parsed is Map && parsed['errors'] is List) {
+                  final errs = parsed['errors'] as List;
+                  msg = errs.map((err) => err['message']?.toString() ?? err['code']?.toString() ?? '').where((s) => s.isNotEmpty).join('\n');
+                  if (msg.isEmpty) msg = raw;
+                } else {
+                  msg = raw;
+                }
+              } catch (_) {
+                msg = raw;
+              }
+            } else if (raw.isNotEmpty) {
+              msg = raw;
+            }
+          } else if (data is String && data.isNotEmpty) {
+            msg = data;
+          }
         } catch (_) {}
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -242,8 +266,16 @@ class _ShippingFormScreenState extends State<ShippingFormScreen> {
                 child: TextFormField(
                   controller: _valueCtrl,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'Declared Value *', prefixText: '\$ '),
-                  validator: (v) => (double.tryParse(v ?? '') ?? -1) < 0 ? 'Required' : null,
+                  decoration: const InputDecoration(
+                    labelText: 'Declared Value *',
+                    prefixText: '\$ ',
+                    helperText: 'Customs value (> 0)',
+                  ),
+                  validator: (v) {
+                    final val = double.tryParse(v ?? '');
+                    if (val == null || val <= 0) return 'Enter customs value > 0';
+                    return null;
+                  },
                 ),
               ),
             ]),
@@ -261,6 +293,8 @@ class _ShippingFormScreenState extends State<ShippingFormScreen> {
             TextFormField(
               controller: _contentsCtrl,
               decoration: const InputDecoration(labelText: 'Contents Description *'),
+              textCapitalization: TextCapitalization.characters,
+              inputFormatters: [UpperCaseTextFormatter()],
               validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
             ),
             const SizedBox(height: 12),
@@ -393,16 +427,22 @@ class _ShippingFormScreenState extends State<ShippingFormScreen> {
         ),
       );
 
-  Widget _field(TextEditingController ctrl, String label, {TextInputType? keyboard, String? hint}) =>
-      Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: TextFormField(
-          controller: ctrl,
-          keyboardType: keyboard,
-          decoration: InputDecoration(labelText: '$label *', hintText: hint),
-          validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
-        ),
-      );
+  Widget _field(TextEditingController ctrl, String label, {TextInputType? keyboard, String? hint}) {
+    final isEmail = keyboard == TextInputType.emailAddress;
+    final isPhone = keyboard == TextInputType.phone;
+    final upper = !isEmail && !isPhone;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextFormField(
+        controller: ctrl,
+        keyboardType: keyboard,
+        textCapitalization: upper ? TextCapitalization.characters : TextCapitalization.none,
+        inputFormatters: upper ? [UpperCaseTextFormatter()] : null,
+        decoration: InputDecoration(labelText: '$label *', hintText: hint),
+        validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+      ),
+    );
+  }
 
   Widget _optField(TextEditingController ctrl, String label) => TextFormField(
         controller: ctrl,

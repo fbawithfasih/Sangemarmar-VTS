@@ -69,7 +69,7 @@ class BillingOrder {
     required this.createdAt,
   });
 
-  double get totalUsd => items.fold(0, (s, i) => s + i.amountUsd);
+  double get totalUsd => items.fold(0.0, (s, i) => s + i.amountUsd);
 
   factory BillingOrder.fromJson(Map<String, dynamic> j) => BillingOrder(
         id: j['id'] as String,

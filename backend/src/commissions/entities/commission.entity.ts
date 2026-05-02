@@ -55,6 +55,9 @@ export class Commission {
   @Column({ type: 'date', nullable: true })
   paidAt: Date;
 
+  @Column({ type: 'text', nullable: true })
+  paidNote: string;
+
   @CreateDateColumn()
   createdAt: Date;
 

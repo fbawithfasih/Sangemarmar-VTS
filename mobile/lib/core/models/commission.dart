@@ -10,6 +10,7 @@ class Commission {
   final String? overrideReason;
   final double? paidAmount;
   final DateTime? paidAt;
+  final String? paidNote;
   final DateTime createdAt;
 
   const Commission({
@@ -24,6 +25,7 @@ class Commission {
     this.overrideReason,
     this.paidAmount,
     this.paidAt,
+    this.paidNote,
     required this.createdAt,
   });
 
@@ -43,6 +45,7 @@ class Commission {
         paidAt: json['paidAt'] != null
             ? DateTime.parse(json['paidAt'] as String).toLocal()
             : null,
+        paidNote: json['paidNote'] as String?,
         createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
       );
 

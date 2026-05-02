@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/models/vehicle_entry.dart';
 import '../../core/services/api_service.dart';
 import '../../core/constants/api_constants.dart';
+import '../../core/utils/uppercase_formatter.dart';
 import '../../core/widgets/app_bar.dart';
 
 class SalesFormScreen extends StatefulWidget {
@@ -123,6 +124,8 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
                     TextFormField(
                       controller: _salespersonCtrl,
                       decoration: const InputDecoration(labelText: 'Salesperson', prefixIcon: Icon(Icons.person)),
+                      textCapitalization: TextCapitalization.characters,
+                      inputFormatters: [UpperCaseTextFormatter()],
                       validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                     ),
                     const SizedBox(height: 16),
@@ -140,6 +143,8 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
                       controller: _notesCtrl,
                       decoration: const InputDecoration(labelText: 'Notes (optional)', prefixIcon: Icon(Icons.notes)),
                       maxLines: 2,
+                      textCapitalization: TextCapitalization.characters,
+                      inputFormatters: [UpperCaseTextFormatter()],
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: 12),

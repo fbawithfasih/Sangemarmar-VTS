@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/services/api_service.dart';
 import '../../core/constants/api_constants.dart';
+import '../../core/utils/uppercase_formatter.dart';
 import '../../core/widgets/app_bar.dart';
 
 class StatementsScreen extends StatefulWidget {
@@ -113,6 +114,8 @@ class _StatementsScreenState extends State<StatementsScreen>
           padding: const EdgeInsets.all(12),
           child: TextField(
             controller: _searchCtrls[type],
+            textCapitalization: TextCapitalization.characters,
+            inputFormatters: [UpperCaseTextFormatter()],
             decoration: InputDecoration(
               hintText: 'Search ${_labels[type]?.toLowerCase()}...',
               prefixIcon: const Icon(Icons.search),

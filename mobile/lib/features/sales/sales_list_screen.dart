@@ -65,8 +65,19 @@ class _SalesListScreenState extends State<SalesListScreen> {
                                 s.vehicleEntry?.vehicleNumber ?? s.vehicleEntryId.substring(0, 8),
                                 style: const TextStyle(fontWeight: FontWeight.bold),
                               ),
-                              subtitle: Text(
-                                '${s.salesperson} • ${DateFormat('dd MMM yyyy').format(s.saleDate)}',
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (s.vehicleEntry != null)
+                                    Text(
+                                      'Driver: ${s.vehicleEntry!.driverName}  •  Guide: ${s.vehicleEntry!.guideName}',
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  Text(
+                                    '${s.salesperson} • ${DateFormat('dd MMM yyyy').format(s.saleDate)}',
+                                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                  ),
+                                ],
                               ),
                               trailing: Text(
                                 'Net: ${_fmt.format(s.netSale)}',

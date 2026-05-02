@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/services/api_service.dart';
 import '../../core/constants/api_constants.dart';
+import '../../core/utils/uppercase_formatter.dart';
 import '../../core/widgets/app_bar.dart';
 
 class _ItemRow {
@@ -91,24 +92,24 @@ class _BillingFormScreenState extends State<BillingFormScreen> {
         final ve = o['vehicleEntry'] as Map<String, dynamic>?;
         _selectedVehicleLabel = ve != null ? '${ve['vehicleNumber']} — ${DateFormat('dd MMM yyyy').format(DateTime.parse(ve['entryDate'] as String).toLocal())}' : _selectedVehicleEntryId;
         _orderDate = DateTime.parse(o['orderDate'] as String).toLocal();
-        _nameCtrl.text = o['buyerName'] as String;
-        _addressCtrl.text = o['buyerAddress'] as String;
-        _cityCtrl.text = o['buyerCity'] as String;
-        _stateCtrl.text = o['buyerState'] as String;
-        _zipCtrl.text = o['buyerZip'] as String;
-        _countryCtrl.text = o['buyerCountry'] as String;
+        _nameCtrl.text = (o['buyerName'] as String).toUpperCase();
+        _addressCtrl.text = (o['buyerAddress'] as String).toUpperCase();
+        _cityCtrl.text = (o['buyerCity'] as String).toUpperCase();
+        _stateCtrl.text = (o['buyerState'] as String).toUpperCase();
+        _zipCtrl.text = (o['buyerZip'] as String).toUpperCase();
+        _countryCtrl.text = (o['buyerCountry'] as String).toUpperCase();
         _emailCtrl.text = o['buyerEmail'] as String;
         _whatsAppCtrl.text = o['buyerWhatsApp'] as String;
-        _passportCtrl.text = o['buyerPassportNo'] as String;
-        _nationalityCtrl.text = o['buyerNationality'] as String;
-        _seaPortCtrl.text = o['buyerSeaPort'] as String;
-        _notesCtrl.text = (o['notes'] as String?) ?? '';
+        _passportCtrl.text = (o['buyerPassportNo'] as String).toUpperCase();
+        _nationalityCtrl.text = (o['buyerNationality'] as String).toUpperCase();
+        _seaPortCtrl.text = (o['buyerSeaPort'] as String).toUpperCase();
+        _notesCtrl.text = ((o['notes'] as String?) ?? '').toUpperCase();
         if (o['buyerDOB'] != null) _buyerDOB = DateTime.parse(o['buyerDOB'] as String);
 
         _items.clear();
         for (final item in (o['items'] as List)) {
           final row = _ItemRow();
-          row.particulars.text = item['particulars'] as String;
+          row.particulars.text = (item['particulars'] as String).toUpperCase();
           row.quantity.text = item['quantity'].toString();
           row.priceUsd.text = double.parse(item['priceUsd'].toString()).toStringAsFixed(2);
           _items.add(row);
@@ -407,12 +408,17 @@ class _BillingFormScreenState extends State<BillingFormScreen> {
     TextInputType? keyboardType,
     int maxLines = 1,
   }) {
+    final isEmail = keyboardType == TextInputType.emailAddress;
+    final isPhone = keyboardType == TextInputType.phone;
+    final upper = !isEmail && !isPhone;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
         controller: ctrl,
         keyboardType: keyboardType,
         maxLines: maxLines,
+        textCapitalization: upper ? TextCapitalization.characters : TextCapitalization.none,
+        inputFormatters: upper ? [UpperCaseTextFormatter()] : null,
         decoration: InputDecoration(labelText: label),
         validator: required ? (v) => (v == null || v.trim().isEmpty) ? 'Required' : null : null,
       ),
@@ -459,6 +465,8 @@ class _ItemCard extends StatelessWidget {
             TextFormField(
               controller: row.particulars,
               decoration: const InputDecoration(labelText: 'Description / Particulars'),
+              textCapitalization: TextCapitalization.characters,
+              inputFormatters: [UpperCaseTextFormatter()],
               onChanged: (_) => onChanged(),
               validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
             ),

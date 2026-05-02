@@ -167,7 +167,10 @@ export class CommissionsService implements OnModuleInit {
     return this.repo.find({ where, order: { createdAt: 'DESC' }, relations: ['sale', 'overriddenBy'] });
   }
 
-  async recordPayment(id: string, dto: { paidAmount: number; paidAt: string }): Promise<Commission> {
+  async recordPayment(
+    id: string,
+    dto: { paidAmount: number; paidAt: string; paidNote?: string },
+  ): Promise<Commission> {
     const commission = await this.repo.findOne({ where: { id } });
     if (!commission) throw new NotFoundException('Commission not found');
 
@@ -181,6 +184,7 @@ export class CommissionsService implements OnModuleInit {
     await this.repo.update(id, {
       paidAmount: dto.paidAmount,
       paidAt: new Date(dto.paidAt),
+      paidNote: dto.paidNote?.trim() ? dto.paidNote.trim() : null,
     });
 
     return this.repo.findOne({ where: { id } });

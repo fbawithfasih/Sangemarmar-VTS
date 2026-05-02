@@ -5,6 +5,7 @@ import '../../core/models/payment.dart';
 import '../../core/models/sale.dart';
 import '../../core/services/api_service.dart';
 import '../../core/constants/api_constants.dart';
+import '../../core/utils/uppercase_formatter.dart';
 import '../../core/widgets/app_bar.dart';
 
 class PaymentFormScreen extends StatefulWidget {
@@ -260,6 +261,8 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
                             TextField(
                               controller: _notesCtrl,
                               decoration: const InputDecoration(labelText: 'Notes (optional)', prefixIcon: Icon(Icons.notes)),
+                              textCapitalization: TextCapitalization.characters,
+                              inputFormatters: [UpperCaseTextFormatter()],
                             ),
                             const SizedBox(height: 16),
                             ElevatedButton.icon(
