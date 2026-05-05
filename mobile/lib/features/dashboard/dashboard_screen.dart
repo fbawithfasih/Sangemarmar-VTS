@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:dio/dio.dart';
+import '../../core/models/user.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/services/api_service.dart';
 import '../../core/constants/api_constants.dart';
@@ -35,10 +36,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = context.watch<AuthProvider>().user;
+    final user = context.select<AuthProvider, AppUser?>((p) => p.user);
 
     final items = [
-      _DashItem(
+      const _DashItem(
         icon: Icons.directions_car,
         label: 'Vehicle Entry',
         subtitle: 'Gate entry & tracking',
@@ -46,7 +47,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         route: '/vehicles',
       ),
       if (!(user?.isGateOperator ?? false))
-        _DashItem(
+        const _DashItem(
           icon: Icons.point_of_sale,
           label: 'Sales',
           subtitle: 'Record & manage sales',
@@ -54,7 +55,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           route: '/sales',
         ),
       if (user?.isManager ?? false)
-        _DashItem(
+        const _DashItem(
           icon: Icons.bar_chart,
           label: 'Reports',
           subtitle: 'Sales & financial reports',
@@ -62,7 +63,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           route: '/reports',
         ),
       if (user?.isManager ?? false)
-        _DashItem(
+        const _DashItem(
           icon: Icons.percent,
           label: 'Commission Rates',
           subtitle: 'Configure % rates per recipient',
@@ -70,7 +71,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           route: '/commissions/config',
         ),
       if (user?.canViewStatements ?? false)
-        _DashItem(
+        const _DashItem(
           icon: Icons.account_balance_wallet,
           label: 'Statements',
           subtitle: 'Driver, Guide, Agent, Company',
@@ -78,7 +79,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           route: '/statements',
         ),
       if (user?.isAdmin ?? false)
-        _DashItem(
+        const _DashItem(
           icon: Icons.manage_accounts,
           label: 'Users',
           subtitle: 'Manage staff accounts',

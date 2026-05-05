@@ -31,8 +31,19 @@ export class UsersService {
     return user;
   }
 
+  async findByIdLean(id: string): Promise<User | null> {
+    return this.repo.findOne({
+      where: { id },
+      select: ['id', 'name', 'email', 'role', 'isActive', 'createdAt', 'updatedAt'],
+    });
+  }
+
   async findByEmail(email: string): Promise<User | null> {
-    return this.repo.findOne({ where: { email } });
+    return this.repo
+      .createQueryBuilder('u')
+      .addSelect('u.password')
+      .where('u.email = :email', { email })
+      .getOne();
   }
 
   async deactivate(id: string): Promise<void> {

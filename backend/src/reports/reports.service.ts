@@ -96,17 +96,79 @@ export class ReportsService {
   }
 
   async dashboard(filter: ReportFilter) {
-    const [v, s, p, c] = await Promise.all([
-      this.vehicleEntries(filter),
-      this.sales(filter),
-      this.payments(filter),
-      this.commissions(filter),
+    const vehicleQb = this.vehicleRepo.createQueryBuilder('v');
+    if (filter.companyName) vehicleQb.andWhere('v.companyName = :company', { company: filter.companyName });
+    if (filter.status) vehicleQb.andWhere('v.status = :status', { status: filter.status });
+    if (filter.dateFrom && filter.dateTo) {
+      vehicleQb.andWhere('v.entryDate BETWEEN :df AND :dt', { df: istDayStart(filter.dateFrom), dt: istDayEnd(filter.dateTo) });
+    } else if (filter.dateFrom) {
+      vehicleQb.andWhere('v.entryDate >= :df', { df: istDayStart(filter.dateFrom) });
+    } else if (filter.dateTo) {
+      vehicleQb.andWhere('v.entryDate <= :dt', { dt: istDayEnd(filter.dateTo) });
+    }
+
+    const saleQb = this.saleRepo.createQueryBuilder('s');
+    if (filter.salesperson) saleQb.andWhere('s.salesperson = :sp', { sp: filter.salesperson });
+    if (filter.dateFrom && filter.dateTo) {
+      saleQb.andWhere('s.saleDate BETWEEN :df AND :dt', { df: istDayStart(filter.dateFrom), dt: istDayEnd(filter.dateTo) });
+    } else if (filter.dateFrom) {
+      saleQb.andWhere('s.saleDate >= :df', { df: istDayStart(filter.dateFrom) });
+    } else if (filter.dateTo) {
+      saleQb.andWhere('s.saleDate <= :dt', { dt: istDayEnd(filter.dateTo) });
+    }
+
+    const payQb = this.paymentRepo.createQueryBuilder('p');
+    if (filter.paymentMode) payQb.andWhere('p.mode = :m', { m: filter.paymentMode });
+    if (filter.dateFrom && filter.dateTo) {
+      payQb.andWhere('p.paymentDate BETWEEN :df AND :dt', { df: istDayStart(filter.dateFrom), dt: istDayEnd(filter.dateTo) });
+    } else if (filter.dateFrom) {
+      payQb.andWhere('p.paymentDate >= :df', { df: istDayStart(filter.dateFrom) });
+    } else if (filter.dateTo) {
+      payQb.andWhere('p.paymentDate <= :dt', { dt: istDayEnd(filter.dateTo) });
+    }
+
+    const commQb = this.commissionRepo.createQueryBuilder('c');
+    if (filter.dateFrom && filter.dateTo) {
+      commQb.andWhere('c.createdAt BETWEEN :df AND :dt', { df: istDayStart(filter.dateFrom), dt: istDayEnd(filter.dateTo) });
+    } else if (filter.dateFrom) {
+      commQb.andWhere('c.createdAt >= :df', { df: istDayStart(filter.dateFrom) });
+    } else if (filter.dateTo) {
+      commQb.andWhere('c.createdAt <= :dt', { dt: istDayEnd(filter.dateTo) });
+    }
+
+    const [vAgg, sAgg, pAgg, pByMode, cAgg] = await Promise.all([
+      vehicleQb.clone().select('COUNT(*)', 'count').getRawOne<{ count: string }>(),
+      saleQb.clone()
+        .select('COUNT(*)', 'count')
+        .addSelect('COALESCE(SUM(s.grossSale),0)', 'gross')
+        .addSelect('COALESCE(SUM(s.netSale),0)', 'net')
+        .getRawOne<{ count: string; gross: string; net: string }>(),
+      payQb.clone()
+        .select('COUNT(*)', 'count')
+        .addSelect('COALESCE(SUM(p.amount),0)', 'amount')
+        .getRawOne<{ count: string; amount: string }>(),
+      payQb.clone()
+        .select('p.mode', 'mode')
+        .addSelect('COALESCE(SUM(p.amount),0)', 'amount')
+        .groupBy('p.mode')
+        .getRawMany<{ mode: string; amount: string }>(),
+      commQb.clone()
+        .select('COUNT(*)', 'count')
+        .addSelect('COALESCE(SUM(c.finalAmount),0)', 'final')
+        .addSelect("COUNT(*) FILTER (WHERE c.isOverridden = true)", 'overrides')
+        .getRawOne<{ count: string; final: string; overrides: string }>(),
     ]);
+
+    const byMode = pByMode.reduce((acc, r) => {
+      acc[r.mode] = Number(r.amount);
+      return acc;
+    }, {} as Record<string, number>);
+
     return {
-      vehicles: { count: v.count },
-      sales: { count: s.count, totalGross: s.totalGross, totalNet: s.totalNet },
-      payments: { count: p.count, totalAmount: p.totalAmount, byMode: p.byMode },
-      commissions: { count: c.count, totalFinal: c.totalFinal, overrides: c.overrides },
+      vehicles: { count: Number(vAgg?.count ?? 0) },
+      sales: { count: Number(sAgg?.count ?? 0), totalGross: Number(sAgg?.gross ?? 0), totalNet: Number(sAgg?.net ?? 0) },
+      payments: { count: Number(pAgg?.count ?? 0), totalAmount: Number(pAgg?.amount ?? 0), byMode },
+      commissions: { count: Number(cAgg?.count ?? 0), totalFinal: Number(cAgg?.final ?? 0), overrides: Number(cAgg?.overrides ?? 0) },
     };
   }
 

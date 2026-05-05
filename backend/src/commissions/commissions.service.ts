@@ -32,17 +32,14 @@ export class CommissionsService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    // Seed default rates if none exist yet
-    for (const [type, rate] of Object.entries(DEFAULT_RATES)) {
-      const existing = await this.configRepo.findOne({
-        where: { recipientType: type as CommissionRecipientType },
-      });
-      if (!existing) {
-        await this.configRepo.save(
-          this.configRepo.create({ recipientType: type as CommissionRecipientType, rate }),
-        );
-      }
-    }
+    const existing = await this.configRepo.find();
+    const have = new Set(existing.map((c) => c.recipientType));
+    const missing = Object.entries(DEFAULT_RATES)
+      .filter(([type]) => !have.has(type as CommissionRecipientType))
+      .map(([type, rate]) =>
+        this.configRepo.create({ recipientType: type as CommissionRecipientType, rate }),
+      );
+    if (missing.length) await this.configRepo.save(missing);
   }
 
   async getConfigs(): Promise<CommissionConfig[]> {
@@ -57,9 +54,13 @@ export class CommissionsService implements OnModuleInit {
     const oldConfigs = await this.getConfigs();
     const oldValues = Object.fromEntries(oldConfigs.map(c => [c.recipientType, c.rate]));
 
-    for (const item of dto.rates) {
+    if (dto.rates.length) {
       await this.configRepo.upsert(
-        { recipientType: item.recipientType, rate: item.rate, updatedById: user.id },
+        dto.rates.map((item) => ({
+          recipientType: item.recipientType,
+          rate: item.rate,
+          updatedById: user.id,
+        })),
         { conflictPaths: ['recipientType'] },
       );
     }
@@ -129,14 +130,14 @@ export class CommissionsService implements OnModuleInit {
 
     const old = { finalAmount: commission.finalAmount, isOverridden: commission.isOverridden };
 
-    await this.repo.update(id, {
-      ...(dto.rate !== undefined && { rate: dto.rate }),
-      finalAmount: dto.finalAmount,
-      isOverridden: true,
-      overrideReason: dto.overrideReason,
-      overriddenById: user.id,
-      overriddenAt: new Date(),
-    });
+    if (dto.rate !== undefined) commission.rate = dto.rate;
+    commission.finalAmount = dto.finalAmount;
+    commission.isOverridden = true;
+    commission.overrideReason = dto.overrideReason;
+    commission.overriddenById = user.id;
+    commission.overriddenBy = user;
+    commission.overriddenAt = new Date();
+    const saved = await this.repo.save(commission);
 
     await this.auditService.log({
       action: AuditAction.COMMISSION_OVERRIDDEN,
@@ -157,7 +158,7 @@ export class CommissionsService implements OnModuleInit {
       });
     }
 
-    return this.repo.findOne({ where: { id }, relations: ['overriddenBy'] });
+    return saved;
   }
 
   async findAll(filters?: { saleId?: string; recipientType?: CommissionRecipientType }) {
@@ -181,12 +182,9 @@ export class CommissionsService implements OnModuleInit {
       );
     }
 
-    await this.repo.update(id, {
-      paidAmount: dto.paidAmount,
-      paidAt: new Date(dto.paidAt),
-      paidNote: dto.paidNote?.trim() ? dto.paidNote.trim() : null,
-    });
-
-    return this.repo.findOne({ where: { id } });
+    commission.paidAmount = dto.paidAmount;
+    commission.paidAt = new Date(dto.paidAt);
+    commission.paidNote = dto.paidNote?.trim() ? dto.paidNote.trim() : null;
+    return this.repo.save(commission);
   }
 }

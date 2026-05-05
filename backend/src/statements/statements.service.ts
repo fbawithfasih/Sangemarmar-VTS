@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, ILike, Repository } from 'typeorm';
+import { Between, ILike, In, Repository } from 'typeorm';
 import * as ExcelJS from 'exceljs';
 import * as PDFDocument from 'pdfkit';
 import { VehicleEntry } from '../vehicles/entities/vehicle-entry.entity';
@@ -24,8 +24,12 @@ const TYPE_TO_COMMISSION: Record<StatementType, CommissionRecipientType> = {
   [StatementType.COMPANY]: CommissionRecipientType.COMPANY,
 };
 
+const UNIQUE_NAMES_TTL_MS = 5 * 60 * 1000;
+
 @Injectable()
 export class StatementsService {
+  private readonly uniqueNamesCache = new Map<StatementType, { expiresAt: number; value: string[] }>();
+
   constructor(
     @InjectRepository(VehicleEntry) private readonly vehicleRepo: Repository<VehicleEntry>,
     @InjectRepository(Sale) private readonly saleRepo: Repository<Sale>,
@@ -34,13 +38,18 @@ export class StatementsService {
   ) {}
 
   async getUniqueNames(type: StatementType): Promise<string[]> {
+    const cached = this.uniqueNamesCache.get(type);
+    if (cached && cached.expiresAt > Date.now()) return cached.value;
+
     const field = TYPE_TO_FIELD[type];
     const rows = await this.vehicleRepo
       .createQueryBuilder('ve')
       .select(`DISTINCT ve.${field}`, 'name')
       .orderBy(`ve.${field}`, 'ASC')
       .getRawMany();
-    return rows.map((r) => r.name as string).filter(Boolean);
+    const value = rows.map((r) => r.name as string).filter(Boolean);
+    this.uniqueNamesCache.set(type, { expiresAt: Date.now() + UNIQUE_NAMES_TTL_MS, value });
+    return value;
   }
 
   async getStatement(filter: StatementFilterDto) {
@@ -54,24 +63,49 @@ export class StatementsService {
 
     const entries = await this.vehicleRepo.find({ where, order: { entryDate: 'DESC' } });
 
-    const entryData = await Promise.all(
-      entries.map(async (entry) => {
-        const sales = await this.saleRepo.find({ where: { vehicleEntryId: entry.id } });
-
-        const saleData = await Promise.all(
-          sales.map(async (sale) => {
-            const payments = await this.paymentRepo.find({ where: { saleId: sale.id } });
-            const paymentTotal = payments.reduce((s, p) => s + Number(p.amount), 0);
-            const commission = await this.commissionRepo.findOne({
-              where: { saleId: sale.id, recipientType: commissionType },
-            });
-            return { sale, payments, paymentTotal, commission };
+    const entryIds = entries.map((e) => e.id);
+    const sales = entryIds.length
+      ? await this.saleRepo.find({ where: { vehicleEntryId: In(entryIds) } })
+      : [];
+    const saleIds = sales.map((s) => s.id);
+    const [payments, commissions] = saleIds.length
+      ? await Promise.all([
+          this.paymentRepo.find({ where: { saleId: In(saleIds) } }),
+          this.commissionRepo.find({
+            where: { saleId: In(saleIds), recipientType: commissionType },
           }),
-        );
+        ])
+      : [[], []];
 
-        return { entry, sales: saleData };
-      }),
-    );
+    const paymentsBySale = new Map<string, typeof payments>();
+    for (const p of payments) {
+      const arr = paymentsBySale.get(p.saleId) ?? [];
+      arr.push(p);
+      paymentsBySale.set(p.saleId, arr);
+    }
+    const commissionBySale = new Map<string, (typeof commissions)[number]>();
+    for (const c of commissions) commissionBySale.set(c.saleId, c);
+    const salesByEntry = new Map<string, typeof sales>();
+    for (const s of sales) {
+      const arr = salesByEntry.get(s.vehicleEntryId) ?? [];
+      arr.push(s);
+      salesByEntry.set(s.vehicleEntryId, arr);
+    }
+
+    const entryData = entries.map((entry) => {
+      const entrySales = salesByEntry.get(entry.id) ?? [];
+      const saleData = entrySales.map((sale) => {
+        const salePayments = paymentsBySale.get(sale.id) ?? [];
+        const paymentTotal = salePayments.reduce((s, p) => s + Number(p.amount), 0);
+        return {
+          sale,
+          payments: salePayments,
+          paymentTotal,
+          commission: commissionBySale.get(sale.id) ?? null,
+        };
+      });
+      return { entry, sales: saleData };
+    });
 
     const summary = {
       totalVehicleEntries: entries.length,

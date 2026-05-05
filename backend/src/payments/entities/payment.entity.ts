@@ -1,5 +1,5 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
+  Entity, PrimaryGeneratedColumn, Column, Index,
   CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn,
 } from 'typeorm';
 import { PaymentMode } from '../../common/enums';
@@ -11,6 +11,7 @@ export class Payment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
   @Column()
   saleId: string;
 
@@ -24,6 +25,7 @@ export class Payment {
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   amount: number;
 
+  @Index()
   @Column({ type: 'timestamptz', default: () => 'NOW()' })
   paymentDate: Date;
 

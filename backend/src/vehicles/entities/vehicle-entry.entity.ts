@@ -1,5 +1,5 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
+  Entity, PrimaryGeneratedColumn, Column, Index,
   CreateDateColumn, UpdateDateColumn, ManyToOne,
   JoinColumn, OneToMany,
 } from 'typeorm';
@@ -11,30 +11,37 @@ export class VehicleEntry {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
   @Column()
   vehicleNumber: string;
 
+  @Index()
   @Column()
   driverName: string;
 
   @Column({ nullable: true })
   driverMobile: string;
 
+  @Index()
   @Column()
   guideName: string;
 
   @Column({ nullable: true })
   guideMobile: string;
 
+  @Index()
   @Column()
   localAgent: string;
 
+  @Index()
   @Column()
   companyName: string;
 
+  @Index()
   @Column({ type: 'timestamptz', default: () => 'NOW()' })
   entryDate: Date;
 
+  @Index()
   @Column({ type: 'enum', enum: WorkflowStatus, default: WorkflowStatus.ENTERED })
   status: WorkflowStatus;
 

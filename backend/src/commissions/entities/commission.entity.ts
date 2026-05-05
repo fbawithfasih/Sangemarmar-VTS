@@ -1,5 +1,5 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
+  Entity, PrimaryGeneratedColumn, Column, Index,
   CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn,
 } from 'typeorm';
 import { CommissionRecipientType } from '../../common/enums';
@@ -7,10 +7,12 @@ import { Sale } from '../../sales/entities/sale.entity';
 import { User } from '../../users/entities/user.entity';
 
 @Entity('commissions')
+@Index(['saleId', 'recipientType'])
 export class Commission {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
   @Column()
   saleId: string;
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -22,11 +23,26 @@ class _VehicleEntryListScreenState extends State<VehicleEntryListScreen> {
   bool _loading = true;
   String? _error;
   final _searchCtrl = TextEditingController();
+  Timer? _searchDebounce;
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String v) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      _load(search: v);
+    });
   }
 
   Future<void> _load({String? search}) async {
@@ -89,7 +105,7 @@ class _VehicleEntryListScreenState extends State<VehicleEntryListScreen> {
                       )
                     : null,
               ),
-              onChanged: (v) => _load(search: v),
+              onChanged: _onSearchChanged,
             ),
           ),
           Expanded(

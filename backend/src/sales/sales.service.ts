@@ -93,7 +93,8 @@ export class SalesService {
     const sale = await this.findOne(id);
     const old = { grossSale: sale.grossSale, netSale: sale.netSale };
 
-    await this.repo.update(id, updates as any);
+    Object.assign(sale, updates);
+    const saved = await this.repo.save(sale);
 
     await this.auditService.log({
       action: AuditAction.SALE_UPDATED,
@@ -104,6 +105,6 @@ export class SalesService {
       newValues: updates as any,
     });
 
-    return this.findOne(id);
+    return saved;
   }
 }

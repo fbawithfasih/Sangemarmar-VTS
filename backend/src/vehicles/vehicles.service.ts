@@ -87,7 +87,8 @@ export class VehiclesService {
     if (user.role !== UserRole.ADMIN) throw new ForbiddenException('Only admins can edit vehicle entries');
     const entry = await this.findOne(id);
     const oldValues = { ...entry };
-    await this.repo.update(id, dto as any);
+    Object.assign(entry, dto);
+    const saved = await this.repo.save(entry);
     await this.auditService.log({
       action: AuditAction.STATUS_CHANGED,
       entityType: 'VehicleEntry',
@@ -96,7 +97,7 @@ export class VehiclesService {
       oldValues: oldValues as any,
       newValues: dto as any,
     });
-    return this.findOne(id);
+    return saved;
   }
 
   async delete(id: string, user: User): Promise<void> {
@@ -115,7 +116,8 @@ export class VehiclesService {
   async updateStatus(id: string, status: WorkflowStatus, userId: string): Promise<VehicleEntry> {
     const entry = await this.findOne(id);
     const old = entry.status;
-    await this.repo.update(id, { status });
+    entry.status = status;
+    const saved = await this.repo.save(entry);
 
     await this.auditService.log({
       action: AuditAction.STATUS_CHANGED,
@@ -127,6 +129,6 @@ export class VehiclesService {
     });
 
     await this.logisticsService.addEvent({ vehicleEntryId: id, status }, userId);
-    return this.findOne(id);
+    return saved;
   }
 }

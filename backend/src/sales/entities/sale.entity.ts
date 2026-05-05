@@ -1,5 +1,5 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
+  Entity, PrimaryGeneratedColumn, Column, Index,
   CreateDateColumn, UpdateDateColumn, ManyToOne,
   JoinColumn, OneToMany,
 } from 'typeorm';
@@ -12,6 +12,7 @@ export class Sale {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Index()
   @Column()
   vehicleEntryId: string;
 
@@ -25,12 +26,14 @@ export class Sale {
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   netSale: number;
 
+  @Index()
   @Column()
   salesperson: string;
 
   @Column({ type: 'enum', enum: OrderType })
   orderType: OrderType;
 
+  @Index()
   @Column({ type: 'timestamptz', default: () => 'NOW()' })
   saleDate: Date;
 
