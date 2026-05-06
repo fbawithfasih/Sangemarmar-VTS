@@ -2,19 +2,19 @@ import {
   Entity, PrimaryGeneratedColumn, Column,
   ManyToOne, JoinColumn,
 } from 'typeorm';
-import { BillingOrder } from './billing-order.entity';
+import { HandDeliveryOrder } from './hand-delivery-order.entity';
 
-@Entity('billing_items')
-export class BillingItem {
+@Entity('hand_delivery_items')
+export class HandDeliveryItem {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column()
-  billingOrderId: string;
+  handDeliveryOrderId: string;
 
-  @ManyToOne(() => BillingOrder, (o) => o.items, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'billingOrderId' })
-  billingOrder: BillingOrder;
+  @ManyToOne(() => HandDeliveryOrder, (o) => o.items, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'handDeliveryOrderId' })
+  handDeliveryOrder: HandDeliveryOrder;
 
   @Column()
   particulars: string;
@@ -28,9 +28,9 @@ export class BillingItem {
   @Column({ type: 'int' })
   quantity: number;
 
-  @Column({ name: 'priceUsd', type: 'decimal', precision: 12, scale: 2 })
+  @Column({ type: 'decimal', precision: 12, scale: 2 })
   priceInr: number;
 
-  @Column({ name: 'amountUsd', type: 'decimal', precision: 12, scale: 2 })
+  @Column({ type: 'decimal', precision: 12, scale: 2 })
   amountInr: number;
 }

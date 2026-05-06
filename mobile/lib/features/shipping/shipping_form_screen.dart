@@ -67,8 +67,8 @@ class _ShippingFormScreenState extends State<ShippingFormScreen> {
     _recCountryCtrl.text = ((b['buyerCountry'] as String?) ?? '').toUpperCase();
     _recPhoneCtrl.text = (b['buyerWhatsApp'] as String?) ?? '';
     _recEmailCtrl.text = (b['buyerEmail'] as String?) ?? '';
-    final totalUsd = b['totalUsd'] as double?;
-    if (totalUsd != null) _valueCtrl.text = totalUsd.toStringAsFixed(2);
+    final totalInr = b['totalInr'] as double?;
+    if (totalInr != null) _valueCtrl.text = totalInr.toStringAsFixed(2);
   }
 
   @override

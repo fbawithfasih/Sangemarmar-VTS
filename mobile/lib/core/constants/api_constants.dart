@@ -37,6 +37,9 @@ class ApiConstants {
   static const String billing = '/billing';
   static const String billingExport = '/billing/export';
 
+  // Hand Delivery
+  static const String handDelivery = '/hand-delivery';
+
   // Shipping
   static const String shipping = '/shipping';
   static const String shippingRates = '/shipping/rates';

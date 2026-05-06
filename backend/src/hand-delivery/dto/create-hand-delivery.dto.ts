@@ -1,10 +1,10 @@
 import {
-  IsUUID, IsString, IsEmail, IsOptional, IsDateString,
+  IsString, IsEmail, IsOptional, IsDateString,
   IsArray, ValidateNested, ArrayMinSize, IsInt, IsNumber, Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class CreateBillingItemDto {
+export class CreateHandDeliveryItemDto {
   @IsString() particulars: string;
   @IsOptional() @IsString() hsnCode?: string;
   @IsOptional() @IsString() size?: string;
@@ -12,8 +12,7 @@ export class CreateBillingItemDto {
   @IsNumber() @Min(0) priceInr: number;
 }
 
-export class CreateBillingOrderDto {
-  @IsUUID() vehicleEntryId: string;
+export class CreateHandDeliveryDto {
   @IsDateString() orderDate: string;
 
   @IsString() buyerName: string;
@@ -29,17 +28,17 @@ export class CreateBillingOrderDto {
   @IsString() buyerPassportNo: string;
   @IsOptional() @IsDateString() buyerDOB?: string;
   @IsString() buyerNationality: string;
-  @IsString() buyerSeaPort: string;
+  @IsOptional() @IsString() buyerSeaPort?: string;
   @IsOptional() @IsString() notes?: string;
 
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })
-  @Type(() => CreateBillingItemDto)
-  items: CreateBillingItemDto[];
+  @Type(() => CreateHandDeliveryItemDto)
+  items: CreateHandDeliveryItemDto[];
 }
 
-export class UpdateBillingOrderDto {
+export class UpdateHandDeliveryDto {
   @IsOptional() @IsDateString() orderDate?: string;
   @IsOptional() @IsString() buyerName?: string;
   @IsOptional() @IsString() buyerAddress?: string;
@@ -61,6 +60,12 @@ export class UpdateBillingOrderDto {
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })
-  @Type(() => CreateBillingItemDto)
-  items?: CreateBillingItemDto[];
+  @Type(() => CreateHandDeliveryItemDto)
+  items?: CreateHandDeliveryItemDto[];
+}
+
+export class HandDeliveryFilterDto {
+  @IsOptional() @IsString() dateFrom?: string;
+  @IsOptional() @IsString() dateTo?: string;
+  @IsOptional() @IsString() format?: string;
 }

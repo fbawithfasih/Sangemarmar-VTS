@@ -18,9 +18,13 @@ import '../../features/logistics/logistics_screen.dart';
 import '../../features/users/users_screen.dart';
 import '../../features/notifications/notifications_screen.dart';
 import '../../features/module_select/module_select_screen.dart';
+import '../../features/billing/billing_home_screen.dart';
 import '../../features/billing/billing_list_screen.dart';
 import '../../features/billing/billing_form_screen.dart';
 import '../../features/billing/billing_detail_screen.dart';
+import '../../features/billing/hand_delivery_list_screen.dart';
+import '../../features/billing/hand_delivery_form_screen.dart';
+import '../../features/billing/hand_delivery_detail_screen.dart';
 import '../../features/shipping/shipment_list_screen.dart';
 import '../../features/shipping/shipping_form_screen.dart';
 import '../../features/shipping/shipment_detail_screen.dart';
@@ -42,8 +46,20 @@ final appRouter = GoRouter(
     GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
     GoRoute(path: '/module-select', builder: (_, __) => const ModuleSelectScreen()),
     GoRoute(path: '/dashboard', builder: (_, __) => const DashboardScreen()),
-    GoRoute(path: '/billing', builder: (_, __) => const BillingListScreen()),
+    GoRoute(path: '/billing', builder: (_, __) => const BillingHomeScreen()),
+    GoRoute(path: '/billing/orders', builder: (_, __) => const BillingListScreen()),
+    GoRoute(path: '/billing/orders/new', builder: (_, __) => const BillingFormScreen()),
     GoRoute(path: '/billing/new', builder: (_, __) => const BillingFormScreen()),
+    GoRoute(path: '/billing/hand-delivery', builder: (_, __) => const HandDeliveryListScreen()),
+    GoRoute(path: '/billing/hand-delivery/new', builder: (_, __) => const HandDeliveryFormScreen()),
+    GoRoute(
+      path: '/billing/hand-delivery/:id',
+      builder: (_, state) => HandDeliveryDetailScreen(orderId: state.pathParameters['id']!),
+    ),
+    GoRoute(
+      path: '/billing/hand-delivery/:id/edit',
+      builder: (_, state) => HandDeliveryFormScreen(orderId: state.pathParameters['id']),
+    ),
     GoRoute(
       path: '/billing/:id',
       builder: (_, state) => BillingDetailScreen(orderId: state.pathParameters['id']!),

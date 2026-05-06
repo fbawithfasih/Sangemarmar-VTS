@@ -1,4 +1,4 @@
-class BillingItem {
+class HandDeliveryItem {
   final String id;
   final String particulars;
   final String? hsnCode;
@@ -7,7 +7,7 @@ class BillingItem {
   final double priceInr;
   final double amountInr;
 
-  BillingItem({
+  HandDeliveryItem({
     required this.id,
     required this.particulars,
     this.hsnCode,
@@ -17,7 +17,7 @@ class BillingItem {
     required this.amountInr,
   });
 
-  factory BillingItem.fromJson(Map<String, dynamic> j) => BillingItem(
+  factory HandDeliveryItem.fromJson(Map<String, dynamic> j) => HandDeliveryItem(
         id: j['id'] as String,
         particulars: j['particulars'] as String,
         hsnCode: j['hsnCode'] as String?,
@@ -28,11 +28,9 @@ class BillingItem {
       );
 }
 
-class BillingOrder {
+class HandDeliveryOrder {
   final String id;
   final String invoiceNumber;
-  final String vehicleEntryId;
-  final Map<String, dynamic>? vehicleEntry;
   final DateTime orderDate;
   final String status;
   final String buyerName;
@@ -50,14 +48,12 @@ class BillingOrder {
   final String buyerNationality;
   final String buyerSeaPort;
   final String? notes;
-  final List<BillingItem> items;
+  final List<HandDeliveryItem> items;
   final DateTime createdAt;
 
-  BillingOrder({
+  HandDeliveryOrder({
     required this.id,
     required this.invoiceNumber,
-    required this.vehicleEntryId,
-    this.vehicleEntry,
     required this.orderDate,
     required this.status,
     required this.buyerName,
@@ -81,11 +77,9 @@ class BillingOrder {
 
   double get totalInr => items.fold(0.0, (s, i) => s + i.amountInr);
 
-  factory BillingOrder.fromJson(Map<String, dynamic> j) => BillingOrder(
+  factory HandDeliveryOrder.fromJson(Map<String, dynamic> j) => HandDeliveryOrder(
         id: j['id'] as String,
         invoiceNumber: j['invoiceNumber'] as String,
-        vehicleEntryId: j['vehicleEntryId'] as String,
-        vehicleEntry: j['vehicleEntry'] as Map<String, dynamic>?,
         orderDate: DateTime.parse(j['orderDate'] as String),
         status: j['status'] as String,
         buyerName: j['buyerName'] as String,
@@ -103,7 +97,7 @@ class BillingOrder {
         buyerNationality: j['buyerNationality'] as String,
         buyerSeaPort: (j['buyerSeaPort'] as String?) ?? '',
         notes: j['notes'] as String?,
-        items: (j['items'] as List? ?? []).map((e) => BillingItem.fromJson(e as Map<String, dynamic>)).toList(),
+        items: (j['items'] as List? ?? []).map((e) => HandDeliveryItem.fromJson(e as Map<String, dynamic>)).toList(),
         createdAt: DateTime.parse(j['createdAt'] as String),
       );
 }

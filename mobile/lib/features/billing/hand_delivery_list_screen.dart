@@ -3,20 +3,19 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/services/api_service.dart';
 import '../../core/constants/api_constants.dart';
-import '../../core/utils/download_helper.dart';
 import '../../core/widgets/app_bar.dart';
-import 'models/billing_order.dart';
+import 'models/hand_delivery.dart';
 
-class BillingListScreen extends StatefulWidget {
-  const BillingListScreen({super.key});
+class HandDeliveryListScreen extends StatefulWidget {
+  const HandDeliveryListScreen({super.key});
 
   @override
-  State<BillingListScreen> createState() => _BillingListScreenState();
+  State<HandDeliveryListScreen> createState() => _HandDeliveryListScreenState();
 }
 
-class _BillingListScreenState extends State<BillingListScreen> {
+class _HandDeliveryListScreenState extends State<HandDeliveryListScreen> {
   final _api = ApiService();
-  List<BillingOrder> _orders = [];
+  List<HandDeliveryOrder> _orders = [];
   bool _loading = true;
   String? _error;
   final _dtFmt = DateFormat('dd MMM yyyy');
@@ -30,37 +29,25 @@ class _BillingListScreenState extends State<BillingListScreen> {
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final res = await _api.get(ApiConstants.billing);
+      final res = await _api.get(ApiConstants.handDelivery);
       final list = (res.data as List)
-          .map((e) => BillingOrder.fromJson(e as Map<String, dynamic>))
+          .map((e) => HandDeliveryOrder.fromJson(e as Map<String, dynamic>))
           .toList();
       setState(() { _orders = list; _loading = false; });
     } catch (_) {
-      setState(() { _error = 'Failed to load billing orders'; _loading = false; });
+      setState(() { _error = 'Failed to load hand delivery orders'; _loading = false; });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: SangemarmarAppBar(
-        title: const Text('Billing Orders'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.download),
-            tooltip: 'Export list',
-            onPressed: () => showDownloadSheet(
-              context: context,
-              path: ApiConstants.billingExport,
-              queryParams: {},
-              baseFilename: 'billing_orders',
-            ),
-          ),
-        ],
+      appBar: const SangemarmarAppBar(
+        title: Text('Hand Delivery'),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          await context.push('/billing/new');
+          await context.push('/billing/hand-delivery/new');
           _load();
         },
         child: const Icon(Icons.add),
@@ -70,18 +57,18 @@ class _BillingListScreenState extends State<BillingListScreen> {
           : _error != null
               ? Center(child: Text(_error!, style: const TextStyle(color: Colors.red)))
               : _orders.isEmpty
-                  ? const Center(child: Text('No billing orders yet', style: TextStyle(color: Colors.grey)))
+                  ? const Center(child: Text('No hand delivery orders yet', style: TextStyle(color: Colors.grey)))
                   : RefreshIndicator(
                       onRefresh: _load,
                       child: ListView.separated(
                         padding: const EdgeInsets.all(16),
                         itemCount: _orders.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 10),
-                        itemBuilder: (_, i) => _OrderTile(
+                        itemBuilder: (_, i) => _Tile(
                           order: _orders[i],
                           dtFmt: _dtFmt,
                           onTap: () async {
-                            await context.push('/billing/${_orders[i].id}');
+                            await context.push('/billing/hand-delivery/${_orders[i].id}');
                             _load();
                           },
                         ),
@@ -91,17 +78,15 @@ class _BillingListScreenState extends State<BillingListScreen> {
   }
 }
 
-class _OrderTile extends StatelessWidget {
-  final BillingOrder order;
+class _Tile extends StatelessWidget {
+  final HandDeliveryOrder order;
   final DateFormat dtFmt;
   final VoidCallback onTap;
-  const _OrderTile({required this.order, required this.dtFmt, required this.onTap});
+  const _Tile({required this.order, required this.dtFmt, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final vehicleNo = order.vehicleEntry?['vehicleNumber'] as String? ?? '—';
     final isConfirmed = order.status == 'CONFIRMED';
-
     return Card(
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -115,10 +100,10 @@ class _OrderTile extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6A1B9A).withOpacity(0.1),
+                  color: const Color(0xFF2E7D32).withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.receipt_long, color: Color(0xFF6A1B9A), size: 20),
+                child: const Icon(Icons.local_shipping, color: Color(0xFF2E7D32), size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -127,19 +112,14 @@ class _OrderTile extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Text(
-                          order.invoiceNumber,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                        ),
+                        Text(order.invoiceNumber, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: isConfirmed ? Colors.green.shade50 : Colors.orange.shade50,
                             borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                              color: isConfirmed ? Colors.green.shade300 : Colors.orange.shade300,
-                            ),
+                            border: Border.all(color: isConfirmed ? Colors.green.shade300 : Colors.orange.shade300),
                           ),
                           child: Text(
                             order.status,
@@ -153,14 +133,8 @@ class _OrderTile extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 3),
-                    Text(
-                      '${order.buyerName}  •  ${order.buyerCountry}',
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                    Text(
-                      'Vehicle: $vehicleNo  •  ${dtFmt.format(order.orderDate.toLocal())}',
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
+                    Text('${order.buyerName}  •  ${order.buyerCountry}', style: const TextStyle(fontSize: 13)),
+                    Text(dtFmt.format(order.orderDate.toLocal()), style: const TextStyle(fontSize: 12, color: Colors.grey)),
                   ],
                 ),
               ),
@@ -169,7 +143,7 @@ class _OrderTile extends StatelessWidget {
                 children: [
                   Text(
                     '₹ ${order.totalInr.toStringAsFixed(2)}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF6A1B9A)),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF2E7D32)),
                   ),
                   Text(
                     '${order.items.length} item${order.items.length != 1 ? 's' : ''}',
