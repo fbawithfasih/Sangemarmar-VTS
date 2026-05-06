@@ -94,8 +94,10 @@ export class BillingService {
   }
 
   async create(dto: CreateBillingOrderDto, user: User): Promise<BillingOrder> {
-    const entry = await this.vehiclesService.findOne(dto.vehicleEntryId);
-    if (!entry) throw new NotFoundException('Vehicle entry not found');
+    if (dto.vehicleEntryId) {
+      const entry = await this.vehiclesService.findOne(dto.vehicleEntryId);
+      if (!entry) throw new NotFoundException('Vehicle entry not found');
+    }
 
     const invoiceNumber = await this.generateInvoiceNumber();
     const { items, ...orderData } = dto;

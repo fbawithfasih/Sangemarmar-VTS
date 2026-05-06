@@ -50,10 +50,6 @@ class _BillingFormScreenState extends State<BillingFormScreen> {
   bool _loading = false;
   bool _initializing = true;
 
-  String? _selectedVehicleEntryId;
-  String? _selectedVehicleLabel;
-  List<Map<String, dynamic>> _vehicleEntries = [];
-
   DateTime _orderDate = DateTime.now();
   DateTime? _buyerDOB;
   final _dtFmt = DateFormat('dd MMM yyyy');
@@ -85,18 +81,9 @@ class _BillingFormScreenState extends State<BillingFormScreen> {
 
   Future<void> _init() async {
     try {
-      final res = await _api.get(ApiConstants.vehicles);
-      final entries = (res.data as List).cast<Map<String, dynamic>>();
-      setState(() => _vehicleEntries = entries);
-
       if (_isEdit) {
         final orderRes = await _api.get('${ApiConstants.billing}/${widget.orderId}');
         final o = orderRes.data as Map<String, dynamic>;
-        _selectedVehicleEntryId = o['vehicleEntryId'] as String;
-        final ve = o['vehicleEntry'] as Map<String, dynamic>?;
-        _selectedVehicleLabel = ve != null
-            ? '${ve['vehicleNumber']} — ${DateFormat('dd MMM yyyy').format(DateTime.parse(ve['entryDate'] as String).toLocal())}'
-            : _selectedVehicleEntryId;
         _orderDate = DateTime.parse(o['orderDate'] as String).toLocal();
         _nameCtrl.text = (o['buyerName'] as String).toUpperCase();
         _addressCtrl.text = (o['buyerAddress'] as String).toUpperCase();
@@ -158,55 +145,8 @@ class _BillingFormScreenState extends State<BillingFormScreen> {
     if (d != null) setState(() => _buyerDOB = d);
   }
 
-  Future<void> _showVehiclePicker() async {
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-      builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.6, maxChildSize: 0.9, minChildSize: 0.4, expand: false,
-        builder: (__, ctrl) => Column(
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text('Select Vehicle Entry', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            ),
-            Expanded(
-              child: ListView.builder(
-                controller: ctrl,
-                itemCount: _vehicleEntries.length,
-                itemBuilder: (_, i) {
-                  final ve = _vehicleEntries[i];
-                  final date = DateFormat('dd MMM yyyy').format(DateTime.parse(ve['entryDate'] as String).toLocal());
-                  return ListTile(
-                    leading: const Icon(Icons.directions_car, color: Color(0xFF1565C0)),
-                    title: Text(ve['vehicleNumber'] as String, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('$date  •  ${ve['companyName'] ?? ''}'),
-                    onTap: () {
-                      setState(() {
-                        _selectedVehicleEntryId = ve['id'] as String;
-                        _selectedVehicleLabel = '${ve['vehicleNumber']} — $date';
-                      });
-                      Navigator.pop(context);
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedVehicleEntryId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a vehicle entry'), backgroundColor: Colors.red),
-      );
-      return;
-    }
     if (_items.any((i) => i.particulars.text.trim().isEmpty || i.priceInr.text.trim().isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please complete all item fields'), backgroundColor: Colors.red),
@@ -217,7 +157,6 @@ class _BillingFormScreenState extends State<BillingFormScreen> {
     setState(() => _loading = true);
     try {
       final body = {
-        'vehicleEntryId': _selectedVehicleEntryId,
         'orderDate': _orderDate.toIso8601String(),
         'buyerName': _nameCtrl.text.trim(),
         'buyerAddress': _addressCtrl.text.trim(),
@@ -268,36 +207,6 @@ class _BillingFormScreenState extends State<BillingFormScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _SectionHeader(title: 'Vehicle Entry', icon: Icons.directions_car, color: const Color(0xFF1565C0)),
-            const SizedBox(height: 8),
-            InkWell(
-              onTap: _showVehiclePicker,
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  border: Border.all(color: _selectedVehicleEntryId == null ? Colors.red.shade300 : Colors.grey.shade400),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.search, color: Colors.grey),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        _selectedVehicleLabel ?? 'Select vehicle entry...',
-                        style: TextStyle(
-                          color: _selectedVehicleEntryId == null ? Colors.grey : Colors.black87,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                    const Icon(Icons.chevron_right, color: Colors.grey),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
             ListTile(
               tileColor: Colors.grey.shade50,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),

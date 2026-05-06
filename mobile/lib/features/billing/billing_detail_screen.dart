@@ -159,8 +159,9 @@ class _BillingDetailScreenState extends State<BillingDetailScreen> {
 
   Widget _buildContent() {
     final o = _order!;
-    final vehicleNo = o.vehicleEntry?['vehicleNumber'] as String? ?? '—';
+    final vehicleNo = o.vehicleEntry?['vehicleNumber'] as String?;
     final entryDate = o.vehicleEntry?['entryDate'] as String?;
+    final hasVehicle = vehicleNo != null && vehicleNo.isNotEmpty;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -196,21 +197,22 @@ class _BillingDetailScreenState extends State<BillingDetailScreen> {
         ),
         const SizedBox(height: 16),
 
-        // Vehicle entry card
-        Card(
-          color: const Color(0xFF1565C0).withOpacity(0.06),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-            side: BorderSide(color: const Color(0xFF1565C0).withOpacity(0.3)),
+        if (hasVehicle) ...[
+          Card(
+            color: const Color(0xFF1565C0).withOpacity(0.06),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: BorderSide(color: const Color(0xFF1565C0).withOpacity(0.3)),
+            ),
+            child: ListTile(
+              leading: const Icon(Icons.directions_car, color: Color(0xFF1565C0)),
+              title: Text(vehicleNo, style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text(entryDate != null ? _dtFmt.format(DateTime.parse(entryDate).toLocal()) : ''),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            ),
           ),
-          child: ListTile(
-            leading: const Icon(Icons.directions_car, color: Color(0xFF1565C0)),
-            title: Text(vehicleNo, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text(entryDate != null ? _dtFmt.format(DateTime.parse(entryDate).toLocal()) : ''),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-          ),
-        ),
-        const SizedBox(height: 16),
+          const SizedBox(height: 16),
+        ],
 
         // Buyer details
         _card(

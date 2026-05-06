@@ -99,7 +99,7 @@ class _OrderTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final vehicleNo = order.vehicleEntry?['vehicleNumber'] as String? ?? '—';
+    final vehicleNo = order.vehicleEntry?['vehicleNumber'] as String?;
     final isConfirmed = order.status == 'CONFIRMED';
 
     return Card(
@@ -158,7 +158,9 @@ class _OrderTile extends StatelessWidget {
                       style: const TextStyle(fontSize: 13),
                     ),
                     Text(
-                      'Vehicle: $vehicleNo  •  ${dtFmt.format(order.orderDate.toLocal())}',
+                      vehicleNo != null
+                          ? 'Vehicle: $vehicleNo  •  ${dtFmt.format(order.orderDate.toLocal())}'
+                          : dtFmt.format(order.orderDate.toLocal()),
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                   ],

@@ -16,12 +16,12 @@ export class BillingOrder {
   @Column({ unique: true })
   invoiceNumber: string;
 
-  @Column()
-  vehicleEntryId: string;
+  @Column({ nullable: true })
+  vehicleEntryId: string | null;
 
-  @ManyToOne(() => VehicleEntry, { eager: false, onDelete: 'CASCADE' })
+  @ManyToOne(() => VehicleEntry, { eager: false, onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'vehicleEntryId' })
-  vehicleEntry: VehicleEntry;
+  vehicleEntry: VehicleEntry | null;
 
   @Column({ type: 'timestamptz', default: () => 'NOW()' })
   orderDate: Date;

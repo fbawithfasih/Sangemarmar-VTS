@@ -31,7 +31,7 @@ class BillingItem {
 class BillingOrder {
   final String id;
   final String invoiceNumber;
-  final String vehicleEntryId;
+  final String? vehicleEntryId;
   final Map<String, dynamic>? vehicleEntry;
   final DateTime orderDate;
   final String status;
@@ -56,7 +56,7 @@ class BillingOrder {
   BillingOrder({
     required this.id,
     required this.invoiceNumber,
-    required this.vehicleEntryId,
+    this.vehicleEntryId,
     this.vehicleEntry,
     required this.orderDate,
     required this.status,
@@ -84,7 +84,7 @@ class BillingOrder {
   factory BillingOrder.fromJson(Map<String, dynamic> j) => BillingOrder(
         id: j['id'] as String,
         invoiceNumber: j['invoiceNumber'] as String,
-        vehicleEntryId: j['vehicleEntryId'] as String,
+        vehicleEntryId: j['vehicleEntryId'] as String?,
         vehicleEntry: j['vehicleEntry'] as Map<String, dynamic>?,
         orderDate: DateTime.parse(j['orderDate'] as String),
         status: j['status'] as String,

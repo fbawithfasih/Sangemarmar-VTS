@@ -13,7 +13,7 @@ export class CreateBillingItemDto {
 }
 
 export class CreateBillingOrderDto {
-  @IsUUID() vehicleEntryId: string;
+  @IsOptional() @IsUUID() vehicleEntryId?: string;
   @IsDateString() orderDate: string;
 
   @IsString() buyerName: string;
