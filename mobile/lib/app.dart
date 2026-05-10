@@ -8,7 +8,7 @@ class SangemarmarApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'Sangemarmar VTS',
+      title: 'The Sangemarmar ERP',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(

@@ -1,11 +1,11 @@
 {
-    "name": "sangemarmar_vts",
-    "short_name": "sangemarmar_vts",
+    "name": "The Sangemarmar ERP",
+    "short_name": "Sangemarmar ERP",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Crafted by Legacy, Designed for Luxury",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
