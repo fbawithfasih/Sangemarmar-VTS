@@ -38,8 +38,12 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
     setState(() => _loadingEntry = true);
     try {
       final res = await _api.get('${ApiConstants.vehicles}/${widget.vehicleEntryId}');
+      final entry = VehicleEntry.fromJson(res.data as Map<String, dynamic>);
+      if (entry.assignedSalesmanName != null && _salespersonCtrl.text.isEmpty) {
+        _salespersonCtrl.text = entry.assignedSalesmanName!.toUpperCase();
+      }
       setState(() {
-        _vehicleEntry = VehicleEntry.fromJson(res.data as Map<String, dynamic>);
+        _vehicleEntry = entry;
         _loadingEntry = false;
       });
     } catch (_) {
@@ -101,6 +105,8 @@ class _SalesFormScreenState extends State<SalesFormScreen> {
                               _infoRow('Guide', _vehicleEntry!.guideName),
                               _infoRow('Local Agent', _vehicleEntry!.localAgent),
                               _infoRow('Company', _vehicleEntry!.companyName),
+                              if (_vehicleEntry!.assignedSalesmanName != null)
+                                _infoRow('Salesman', _vehicleEntry!.assignedSalesmanName!),
                             ],
                           ),
                         ),
