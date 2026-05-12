@@ -22,15 +22,25 @@ class _CommissionScreenState extends State<CommissionScreen> {
   List<Commission> _commissions = [];
   Sale? _sale;
   bool _loading = true;
+  bool _savingAll = false;
   final _fmt = NumberFormat.currency(symbol: '₹', decimalDigits: 2);
 
-  final Map<String, bool> _saving = {};
+  // Per-commission % controllers, owned by parent so a single submit can read them all.
+  final Map<String, TextEditingController> _pctCtrls = {};
   final Map<String, bool> _paying = {};
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    for (final c in _pctCtrls.values) {
+      c.dispose();
+    }
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -47,7 +57,11 @@ class _CommissionScreenState extends State<CommissionScreen> {
           .toList();
 
       for (final c in commissions) {
-        _saving[c.id] = false;
+        _pctCtrls.putIfAbsent(c.id, () {
+          final ctrl = TextEditingController();
+          ctrl.addListener(() => setState(() {}));
+          return ctrl;
+        });
         _paying[c.id] = false;
       }
 
@@ -61,38 +75,61 @@ class _CommissionScreenState extends State<CommissionScreen> {
     }
   }
 
-  Future<void> _save(Commission commission, double amount) async {
-    setState(() => _saving[commission.id] = true);
-    try {
-      await _api.patch(
-        '${ApiConstants.commissions}/${commission.id}/override',
-        data: {'finalAmount': amount},
-      );
-      if (mounted) {
+  double _pctValue(String id) => double.tryParse(_pctCtrls[id]?.text ?? '') ?? 0;
+  double _calcAmount(String id) =>
+      (_pctValue(id) / 100) * (_sale?.netSale ?? 0);
+
+  List<Commission> get _pendingCommissions =>
+      _commissions.where((c) => !c.isOverridden).toList();
+
+  bool get _hasAnyPendingWithValue =>
+      _pendingCommissions.any((c) => _calcAmount(c.id) > 0);
+
+  Future<void> _saveAll() async {
+    final toSave = _pendingCommissions
+        .where((c) => _calcAmount(c.id) > 0)
+        .toList();
+    if (toSave.isEmpty) return;
+
+    setState(() => _savingAll = true);
+    final failures = <String>[];
+
+    for (final c in toSave) {
+      try {
+        await _api.patch(
+          '${ApiConstants.commissions}/${c.id}/override',
+          data: {'finalAmount': _calcAmount(c.id)},
+        );
+      } catch (e) {
+        String msg = c.recipientLabel;
+        try {
+          final data = (e as dynamic).response?.data;
+          if (data is Map) msg = '${c.recipientLabel}: ${data['message']}';
+        } catch (_) {}
+        failures.add(msg);
+      }
+    }
+
+    if (mounted) {
+      if (failures.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${commission.recipientLabel} commission saved'),
+            content: Text('Saved ${toSave.length} commission${toSave.length == 1 ? '' : 's'}'),
             backgroundColor: Colors.green,
           ),
         );
-      }
-      await _load();
-    } catch (e) {
-      if (mounted) {
-        String msg = 'Failed to save';
-        try {
-          final data = (e as dynamic).response?.data;
-          if (data is Map) msg = data['message']?.toString() ?? msg;
-        } catch (_) {}
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('Error: $msg'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 6)),
+            content: Text('Some saves failed: ${failures.join('; ')}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 6),
+          ),
         );
       }
     }
-    if (mounted) setState(() => _saving[commission.id] = false);
+    setState(() => _savingAll = false);
+    await _load();
   }
 
   Future<void> _recordPayment(
@@ -141,13 +178,78 @@ class _CommissionScreenState extends State<CommissionScreen> {
   double get _totalCommission =>
       _commissions.fold(0, (sum, c) => sum + c.finalAmount);
 
+  double get _pendingTotalPreview =>
+      _pendingCommissions.fold(0, (sum, c) => sum + _calcAmount(c.id));
+
   @override
   Widget build(BuildContext context) {
     final canEdit =
         context.watch<AuthProvider>().user?.canOverrideCommissions ?? false;
+    final hasPending = _pendingCommissions.isNotEmpty;
 
     return Scaffold(
       appBar: SangemarmarAppBar(title: const Text('Commissions')),
+      bottomNavigationBar: (canEdit && hasPending)
+          ? SafeArea(
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: Colors.grey.shade300)),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_pendingTotalPreview > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Pending total',
+                              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                            ),
+                            Text(
+                              _fmt.format(_pendingTotalPreview),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: Color(0xFF1B5E20),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: (_savingAll || !_hasAnyPendingWithValue)
+                            ? null
+                            : _saveAll,
+                        icon: _savingAll
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.save_alt, size: 18),
+                        label: Text(_savingAll
+                            ? 'Saving…'
+                            : 'Save All Commissions'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF3D5216),
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(0, 46),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : null,
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _commissions.isEmpty
@@ -192,11 +294,11 @@ class _CommissionScreenState extends State<CommissionScreen> {
                             key: ValueKey(c.id),
                             commission: c,
                             netSale: _sale?.netSale ?? 0,
-                            saving: _saving[c.id] ?? false,
                             paying: _paying[c.id] ?? false,
                             canEdit: canEdit,
                             fmt: _fmt,
-                            onSave: (amount) => _save(c, amount),
+                            pctCtrl: _pctCtrls[c.id]!,
+                            calculatedAmount: _calcAmount(c.id),
                             onPay: (amount, date, note) => _recordPayment(c, amount, date, note),
                           );
                         },
@@ -211,22 +313,22 @@ class _CommissionScreenState extends State<CommissionScreen> {
 class _CommissionCard extends StatefulWidget {
   final Commission commission;
   final double netSale;
-  final bool saving;
   final bool paying;
   final bool canEdit;
   final NumberFormat fmt;
-  final void Function(double amount) onSave;
+  final TextEditingController pctCtrl;
+  final double calculatedAmount;
   final void Function(double amount, DateTime date, String? note) onPay;
 
   const _CommissionCard({
     super.key,
     required this.commission,
     required this.netSale,
-    required this.saving,
     required this.paying,
     required this.canEdit,
     required this.fmt,
-    required this.onSave,
+    required this.pctCtrl,
+    required this.calculatedAmount,
     required this.onPay,
   });
 
@@ -235,28 +337,18 @@ class _CommissionCard extends StatefulWidget {
 }
 
 class _CommissionCardState extends State<_CommissionCard> {
-  late final TextEditingController _pctCtrl;
   late final TextEditingController _paidAmountCtrl;
   late final TextEditingController _paidNoteCtrl;
   DateTime _paidAt = DateTime.now();
   final _dateFmt = DateFormat('dd MMM yyyy');
 
-  double get _calculatedAmount {
-    final pct = double.tryParse(_pctCtrl.text) ?? 0;
-    return (pct / 100) * widget.netSale;
-  }
-
-  double get _paidAmountValue =>
-      double.tryParse(_paidAmountCtrl.text) ?? 0;
-
+  double get _paidAmountValue => double.tryParse(_paidAmountCtrl.text) ?? 0;
   bool get _paidAmountExceedsCap =>
       _paidAmountValue > widget.commission.finalAmount;
 
   @override
   void initState() {
     super.initState();
-    _pctCtrl = TextEditingController();
-    _pctCtrl.addListener(() => setState(() {}));
     _paidAmountCtrl = TextEditingController();
     _paidAmountCtrl.addListener(() => setState(() {}));
     _paidNoteCtrl = TextEditingController(text: widget.commission.paidNote ?? '');
@@ -264,7 +356,6 @@ class _CommissionCardState extends State<_CommissionCard> {
 
   @override
   void dispose() {
-    _pctCtrl.dispose();
     _paidAmountCtrl.dispose();
     _paidNoteCtrl.dispose();
     super.dispose();
@@ -305,7 +396,7 @@ class _CommissionCardState extends State<_CommissionCard> {
 
   @override
   Widget build(BuildContext context) {
-    final amount = _calculatedAmount;
+    final amount = widget.calculatedAmount;
     final c = widget.commission;
 
     return Card(
@@ -397,7 +488,7 @@ class _CommissionCardState extends State<_CommissionCard> {
                   Expanded(
                     flex: 2,
                     child: TextField(
-                      controller: _pctCtrl,
+                      controller: widget.pctCtrl,
                       keyboardType: const TextInputType.numberWithOptions(
                           decimal: true),
                       style: const TextStyle(
@@ -463,28 +554,6 @@ class _CommissionCardState extends State<_CommissionCard> {
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: (widget.saving || amount <= 0)
-                      ? null
-                      : () => widget.onSave(amount),
-                  icon: widget.saving
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Icon(Icons.check, size: 18),
-                  label: Text(widget.saving ? 'Saving…' : 'Save Amount'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3D5216),
-                    minimumSize: const Size(0, 42),
-                  ),
-                ),
               ),
             ] else
               Container(
