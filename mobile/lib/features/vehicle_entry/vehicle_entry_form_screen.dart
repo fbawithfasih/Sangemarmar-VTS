@@ -222,7 +222,7 @@ class _VehicleEntryFormScreenState extends State<VehicleEntryFormScreen> {
       );
     }
     return DropdownButtonFormField<String>(
-      value: _assignedSalesmanId,
+      initialValue: _assignedSalesmanId,
       decoration: const InputDecoration(
         labelText: 'Appoint Salesman',
         prefixIcon: Icon(Icons.badge),

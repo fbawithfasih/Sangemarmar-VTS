@@ -15,6 +15,7 @@ export enum WorkflowStatus {
   COMMISSION_PENDING = 'COMMISSION_PENDING',
   COMMISSION_COMPLETE = 'COMMISSION_COMPLETE',
   COMPLETED = 'COMPLETED',
+  NO_SALE = 'NO_SALE',
 }
 
 export enum OrderType {

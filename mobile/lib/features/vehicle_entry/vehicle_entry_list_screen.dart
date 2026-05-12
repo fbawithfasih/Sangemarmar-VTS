@@ -69,6 +69,7 @@ class _VehicleEntryListScreenState extends State<VehicleEntryListScreen> {
       'SALES_COMPLETE': Colors.orange,
       'PAYMENT_COMPLETE': Colors.teal,
       'COMPLETED': Colors.green,
+      'NO_SALE': Colors.redAccent,
     };
     return colors[status] ?? Colors.grey;
   }
@@ -221,6 +222,41 @@ class _VehicleEntryListScreenState extends State<VehicleEntryListScreen> {
     }
   }
 
+  Future<void> _markNoSale(VehicleEntry entry) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Mark as No Sale?'),
+        content: Text('No sale was made for ${entry.vehicleNumber}. This will close the entry without a sale.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            child: const Text('Confirm', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await _api.patch('${ApiConstants.vehicles}/${entry.id}/status', data: {'status': 'NO_SALE'});
+      _load(search: _searchCtrl.text);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Marked as No Sale'), backgroundColor: Colors.redAccent),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to update status'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Future<void> _markCompleted(VehicleEntry entry) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -257,74 +293,170 @@ class _VehicleEntryListScreenState extends State<VehicleEntryListScreen> {
     final isAdmin = user?.isAdmin ?? false;
     final isGateOperator = user?.isGateOperator ?? false;
     final canComplete = (user?.isManager ?? false) && entry.status != 'COMPLETED';
+    final canMarkNoSale = !isGateOperator &&
+        entry.status != 'NO_SALE' &&
+        entry.status != 'COMPLETED' &&
+        entry.status != 'SALES_COMPLETE' &&
+        entry.status != 'PAYMENT_COMPLETE' &&
+        entry.status != 'COMMISSION_COMPLETE';
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (_) => Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              entry.vehicleNumber,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-            ),
-            const SizedBox(height: 4),
-            Text('${entry.driverName} | ${entry.companyName}', style: const TextStyle(color: Colors.grey)),
-            const Divider(height: 24),
-            if (!isGateOperator)
-              ListTile(
-                leading: const Icon(Icons.point_of_sale, color: Color(0xFF2E7D32)),
-                title: const Text('Create Sale'),
-                onTap: () {
-                  Navigator.pop(context);
-                  context.push('/sales/new?vehicleEntryId=${entry.id}').then((_) => _load());
-                },
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      entry.vehicleNumber,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _statusColor(entry.status).withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      entry.statusLabel,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: _statusColor(entry.status),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            if (!isGateOperator)
-              ListTile(
-                leading: const Icon(Icons.timeline, color: Color(0xFF1565C0)),
-                title: const Text('View Logistics Timeline'),
-                onTap: () {
-                  Navigator.pop(context);
-                  context.push('/logistics/${entry.id}');
-                },
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _detailRow(Icons.calendar_today, 'Entry Date',
+                        DateFormat('dd MMM yyyy, HH:mm').format(entry.entryDate)),
+                    const SizedBox(height: 8),
+                    _detailRow(Icons.person, 'Driver Name', entry.driverName),
+                    const SizedBox(height: 8),
+                    _detailRow(Icons.person_outline, 'Guide Name', entry.guideName),
+                    const SizedBox(height: 8),
+                    _detailRow(Icons.business, 'Company Name', entry.companyName),
+                    if (entry.assignedSalesmanName != null) ...[
+                      const SizedBox(height: 8),
+                      _detailRow(Icons.badge, 'Salesman', entry.assignedSalesmanName!),
+                    ],
+                  ],
+                ),
               ),
-            if (canComplete)
-              ListTile(
-                leading: const Icon(Icons.check_circle, color: Colors.green),
-                title: const Text('Mark as Completed'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _markCompleted(entry);
-                },
-              ),
-            if (isAdmin) ...[
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.edit, color: Color(0xFF1565C0)),
-                title: const Text('Edit Entry'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _editEntry(entry);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete_outline, color: Colors.red),
-                title: const Text('Delete Entry', style: TextStyle(color: Colors.red)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _deleteEntry(entry);
-                },
-              ),
+              const Divider(height: 24),
+              if (!isGateOperator)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.point_of_sale, color: Color(0xFF2E7D32)),
+                  title: const Text('Create Sale'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push('/sales/new?vehicleEntryId=${entry.id}').then((_) => _load());
+                  },
+                ),
+              if (canMarkNoSale)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.do_not_disturb_on, color: Colors.redAccent),
+                  title: const Text('Mark as No Sales'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _markNoSale(entry);
+                  },
+                ),
+              if (!isGateOperator)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.timeline, color: Color(0xFF1565C0)),
+                  title: const Text('View Logistics Timeline'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    context.push('/logistics/${entry.id}');
+                  },
+                ),
+              if (canComplete)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.check_circle, color: Colors.green),
+                  title: const Text('Mark as Completed'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _markCompleted(entry);
+                  },
+                ),
+              if (isAdmin) ...[
+                const Divider(),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.edit, color: Color(0xFF1565C0)),
+                  title: const Text('Edit Entry'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _editEntry(entry);
+                  },
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.delete_outline, color: Colors.red),
+                  title: const Text('Delete Entry', style: TextStyle(color: Colors.red)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _deleteEntry(entry);
+                  },
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _detailRow(IconData icon, String label, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: Colors.grey.shade700),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 110,
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
     );
   }
 }

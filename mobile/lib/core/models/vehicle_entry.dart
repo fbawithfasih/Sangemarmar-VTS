@@ -60,6 +60,7 @@ class VehicleEntry {
       'COMMISSION_PENDING': 'Commission Pending',
       'COMMISSION_COMPLETE': 'Commission Complete',
       'COMPLETED': 'Completed',
+      'NO_SALE': 'No Sale',
     };
     return labels[status] ?? status;
   }
