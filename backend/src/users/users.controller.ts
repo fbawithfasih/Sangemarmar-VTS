@@ -23,6 +23,12 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
+  @Get('salesmen')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.GATE_OPERATOR)
+  findSalesmen() {
+    return this.usersService.findSalesmen();
+  }
+
   @Get(':id')
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   findOne(@Param('id') id: string) {

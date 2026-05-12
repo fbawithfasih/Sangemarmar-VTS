@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UserRole } from '../common/enums';
 
 @Injectable()
 export class UsersService {
@@ -23,6 +24,14 @@ export class UsersService {
 
   async findAll(): Promise<User[]> {
     return this.repo.find({ select: ['id', 'name', 'email', 'role', 'isActive', 'createdAt'] });
+  }
+
+  async findSalesmen(): Promise<Pick<User, 'id' | 'name'>[]> {
+    return this.repo.find({
+      where: { role: UserRole.SALES_STAFF, isActive: true },
+      select: ['id', 'name'],
+      order: { name: 'ASC' },
+    });
   }
 
   async findById(id: string): Promise<User> {

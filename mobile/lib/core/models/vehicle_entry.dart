@@ -11,6 +11,8 @@ class VehicleEntry {
   final String status;
   final String? notes;
   final DateTime createdAt;
+  final String? assignedSalesmanId;
+  final String? assignedSalesmanName;
 
   const VehicleEntry({
     required this.id,
@@ -25,6 +27,8 @@ class VehicleEntry {
     required this.status,
     this.notes,
     required this.createdAt,
+    this.assignedSalesmanId,
+    this.assignedSalesmanName,
   });
 
   factory VehicleEntry.fromJson(Map<String, dynamic> json) => VehicleEntry(
@@ -40,6 +44,10 @@ class VehicleEntry {
         status: json['status'] as String,
         notes: json['notes'] as String?,
         createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
+        assignedSalesmanId: json['assignedSalesmanId'] as String?,
+        assignedSalesmanName: (json['assignedSalesman'] is Map)
+            ? (json['assignedSalesman']['name'] as String?)
+            : null,
       );
 
   String get statusLabel {

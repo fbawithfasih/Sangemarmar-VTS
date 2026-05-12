@@ -28,6 +28,10 @@ class _VehicleEntryFormScreenState extends State<VehicleEntryFormScreen> {
   final _companyNameCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
 
+  List<Map<String, dynamic>> _salesmen = [];
+  String? _assignedSalesmanId;
+  bool _loadingSalesmen = true;
+
   bool _loading = false;
   bool _prefilling = false;
   String? _error;
@@ -35,7 +39,21 @@ class _VehicleEntryFormScreenState extends State<VehicleEntryFormScreen> {
   @override
   void initState() {
     super.initState();
+    _loadSalesmen();
     if (widget.isEditing) _prefill();
+  }
+
+  Future<void> _loadSalesmen() async {
+    try {
+      final res = await _api.get('${ApiConstants.users}/salesmen');
+      final list = (res.data as List).cast<Map<String, dynamic>>();
+      setState(() {
+        _salesmen = list;
+        _loadingSalesmen = false;
+      });
+    } catch (_) {
+      setState(() => _loadingSalesmen = false);
+    }
   }
 
   Future<void> _prefill() async {
@@ -51,6 +69,7 @@ class _VehicleEntryFormScreenState extends State<VehicleEntryFormScreen> {
       _localAgentCtrl.text = data['localAgent'] ?? '';
       _companyNameCtrl.text = data['companyName'] ?? '';
       _notesCtrl.text = data['notes'] ?? '';
+      _assignedSalesmanId = data['assignedSalesmanId'] as String?;
     } catch (_) {
       setState(() => _error = 'Failed to load entry data.');
     }
@@ -72,6 +91,10 @@ class _VehicleEntryFormScreenState extends State<VehicleEntryFormScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_assignedSalesmanId == null) {
+      setState(() => _error = 'Please appoint a salesman before creating the entry.');
+      return;
+    }
     setState(() { _loading = true; _error = null; });
 
     final payload = {
@@ -83,6 +106,7 @@ class _VehicleEntryFormScreenState extends State<VehicleEntryFormScreen> {
       'localAgent': _localAgentCtrl.text.trim(),
       'companyName': _companyNameCtrl.text.trim(),
       'notes': _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+      'assignedSalesmanId': _assignedSalesmanId,
     };
 
     try {
@@ -150,6 +174,8 @@ class _VehicleEntryFormScreenState extends State<VehicleEntryFormScreen> {
                       textCapitalization: TextCapitalization.characters,
                       inputFormatters: [UpperCaseTextFormatter()],
                     ),
+                    const SizedBox(height: 16),
+                    _buildSalesmanDropdown(),
                     if (_error != null) ...[
                       const SizedBox(height: 12),
                       Text(_error!, style: const TextStyle(color: Colors.red)),
@@ -159,12 +185,56 @@ class _VehicleEntryFormScreenState extends State<VehicleEntryFormScreen> {
                       onPressed: _loading ? null : _submit,
                       child: _loading
                           ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : Text(widget.isEditing ? 'Save Changes' : 'Create Entry'),
+                          : Text(widget.isEditing ? 'Save Changes' : 'Appoint Salesman & Create Entry'),
                     ),
                   ],
                 ),
               ),
             ),
+    );
+  }
+
+  Widget _buildSalesmanDropdown() {
+    if (_loadingSalesmen) {
+      return const InputDecorator(
+        decoration: InputDecoration(
+          labelText: 'Appoint Salesman',
+          prefixIcon: Icon(Icons.badge),
+        ),
+        child: SizedBox(
+          height: 20,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+          ),
+        ),
+      );
+    }
+    if (_salesmen.isEmpty) {
+      return const InputDecorator(
+        decoration: InputDecoration(
+          labelText: 'Appoint Salesman',
+          prefixIcon: Icon(Icons.badge),
+          helperText: 'No active salesmen available. Ask admin to add one.',
+          helperStyle: TextStyle(color: Colors.red),
+        ),
+        child: Text('—'),
+      );
+    }
+    return DropdownButtonFormField<String>(
+      value: _assignedSalesmanId,
+      decoration: const InputDecoration(
+        labelText: 'Appoint Salesman',
+        prefixIcon: Icon(Icons.badge),
+      ),
+      items: _salesmen
+          .map((s) => DropdownMenuItem<String>(
+                value: s['id'] as String,
+                child: Text(s['name'] as String),
+              ))
+          .toList(),
+      onChanged: (v) => setState(() => _assignedSalesmanId = v),
+      validator: (v) => v == null ? 'Please appoint a salesman' : null,
     );
   }
 

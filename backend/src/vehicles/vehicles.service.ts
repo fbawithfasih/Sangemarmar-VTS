@@ -70,14 +70,14 @@ export class VehiclesService {
     return this.repo.find({
       where,
       order: { createdAt: 'DESC' },
-      relations: ['createdBy'],
+      relations: ['createdBy', 'assignedSalesman'],
     });
   }
 
   async findOne(id: string): Promise<VehicleEntry> {
     const entry = await this.repo.findOne({
       where: { id },
-      relations: ['createdBy'],
+      relations: ['createdBy', 'assignedSalesman'],
     });
     if (!entry) throw new NotFoundException('Vehicle entry not found');
     return entry;

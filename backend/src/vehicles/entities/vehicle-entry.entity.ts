@@ -55,6 +55,14 @@ export class VehicleEntry {
   @JoinColumn({ name: 'createdById' })
   createdBy: User;
 
+  @Index()
+  @Column({ nullable: true })
+  assignedSalesmanId: string;
+
+  @ManyToOne(() => User, { nullable: true, eager: false })
+  @JoinColumn({ name: 'assignedSalesmanId' })
+  assignedSalesman: User;
+
   @CreateDateColumn()
   createdAt: Date;
 

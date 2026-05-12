@@ -1,4 +1,4 @@
-import { IsDateString, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsDateString, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
 
 export class CreateVehicleEntryDto {
   @IsNotEmpty()
@@ -36,4 +36,8 @@ export class CreateVehicleEntryDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsUUID()
+  assignedSalesmanId?: string;
 }
