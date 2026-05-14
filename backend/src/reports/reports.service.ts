@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
+import { Between, LessThanOrEqual, MoreThanOrEqual, Repository, SelectQueryBuilder } from 'typeorm';
 import * as ExcelJS from 'exceljs';
 import * as PDFDocument from 'pdfkit';
 import { VehicleEntry } from '../vehicles/entities/vehicle-entry.entity';
 import { Sale } from '../sales/entities/sale.entity';
 import { Payment } from '../payments/entities/payment.entity';
 import { Commission } from '../commissions/entities/commission.entity';
+import { CommissionRecipientType } from '../common/enums';
 
 export interface ReportFilter {
   dateFrom?: string;
@@ -188,6 +189,136 @@ export class ReportsService {
       sales: { count: Number(sAgg?.count ?? 0), totalGross: Number(sAgg?.gross ?? 0), totalNet: Number(sAgg?.net ?? 0) },
       payments: { count: Number(pAgg?.count ?? 0), totalAmount: Number(pAgg?.amount ?? 0), byMode },
       commissions: { count: Number(cAgg?.count ?? 0), totalFinal: Number(cAgg?.final ?? 0), overrides: Number(cAgg?.overrides ?? 0) },
+    };
+  }
+
+  // Admin-only dashboard: period-scoped summary + ranked performance lists.
+  async adminDashboard(filter: ReportFilter) {
+    const applyRange = <T>(
+      qb: SelectQueryBuilder<T>,
+      col: string,
+    ): SelectQueryBuilder<T> => {
+      if (filter.dateFrom && filter.dateTo) {
+        qb.andWhere(`${col} BETWEEN :df AND :dt`, {
+          df: istDayStart(filter.dateFrom),
+          dt: istDayEnd(filter.dateTo),
+        });
+      } else if (filter.dateFrom) {
+        qb.andWhere(`${col} >= :df`, { df: istDayStart(filter.dateFrom) });
+      } else if (filter.dateTo) {
+        qb.andWhere(`${col} <= :dt`, { dt: istDayEnd(filter.dateTo) });
+      }
+      return qb;
+    };
+
+    // ── Summary ───────────────────────────────────────────────────────────
+    const [vAgg, sAgg, cAgg] = await Promise.all([
+      applyRange(this.vehicleRepo.createQueryBuilder('ve'), 've.entryDate')
+        .select('COUNT(*)', 'count')
+        .getRawOne<{ count: string }>(),
+      applyRange(this.saleRepo.createQueryBuilder('s'), 's.saleDate')
+        .select('COUNT(*)', 'count')
+        .addSelect('COALESCE(SUM(s.grossSale),0)', 'gross')
+        .addSelect('COALESCE(SUM(s.netSale),0)', 'net')
+        .getRawOne<{ count: string; gross: string; net: string }>(),
+      applyRange(this.commissionRepo.createQueryBuilder('c'), 'c.createdAt')
+        .select('COALESCE(SUM(c.finalAmount),0)', 'total')
+        .addSelect('COALESCE(SUM(COALESCE(c.paidAmount,0)),0)', 'paid')
+        .getRawOne<{ total: string; paid: string }>(),
+    ]);
+
+    const commissionTotal = Number(cAgg?.total ?? 0);
+    const commissionPaid = Number(cAgg?.paid ?? 0);
+    const summary = {
+      vehicleEntries: Number(vAgg?.count ?? 0),
+      salesCount: Number(sAgg?.count ?? 0),
+      grossSales: Number(sAgg?.gross ?? 0),
+      netSales: Number(sAgg?.net ?? 0),
+      commissionPaid,
+      commissionPending: commissionTotal - commissionPaid,
+      commissionTotal,
+    };
+
+    // ── Salesperson performance ───────────────────────────────────────────
+    const salespersons = (
+      await applyRange(this.saleRepo.createQueryBuilder('s'), 's.saleDate')
+        .select('s.salesperson', 'name')
+        .addSelect('COUNT(*)', 'salesCount')
+        .addSelect('COALESCE(SUM(s.grossSale),0)', 'grossSale')
+        .addSelect('COALESCE(SUM(s.netSale),0)', 'netSale')
+        .groupBy('s.salesperson')
+        .orderBy('COALESCE(SUM(s.netSale),0)', 'DESC')
+        .getRawMany<{ name: string; salesCount: string; grossSale: string; netSale: string }>()
+    ).map((r) => ({
+      name: r.name,
+      salesCount: Number(r.salesCount),
+      grossSale: Number(r.grossSale),
+      netSale: Number(r.netSale),
+    }));
+
+    // ── Recipient performance (company / agent / guide / driver) ──────────
+    // commissions are joined filtered to one recipientType, so the join stays
+    // 1:1 with sales — SUM(s.netSale) is not multiplied.
+    const recipientPerf = (
+      column: string,
+      recipientType: CommissionRecipientType,
+      withSales: boolean,
+    ) => {
+      const qb = applyRange(
+        this.vehicleRepo.createQueryBuilder('ve'),
+        've.entryDate',
+      )
+        .leftJoin('sales', 's', 's.vehicleEntryId = ve.id')
+        .leftJoin(
+          'commissions',
+          'c',
+          'c.saleId = s.id AND c.recipientType = :type',
+          { type: recipientType },
+        )
+        .select(`ve.${column}`, 'name')
+        .addSelect('COUNT(DISTINCT ve.id)', 'entries')
+        .addSelect('COALESCE(SUM(c.finalAmount),0)', 'commission')
+        .groupBy(`ve.${column}`);
+      if (withSales) {
+        qb.addSelect('COUNT(DISTINCT s.id)', 'salesCount')
+          .addSelect('COALESCE(SUM(s.netSale),0)', 'netSale')
+          .orderBy('COALESCE(SUM(s.netSale),0)', 'DESC');
+      } else {
+        qb.orderBy('COALESCE(SUM(c.finalAmount),0)', 'DESC');
+      }
+      return qb.getRawMany();
+    };
+
+    const [companyRows, agentRows, guideRows, driverRows] = await Promise.all([
+      recipientPerf('companyName', CommissionRecipientType.COMPANY, true),
+      recipientPerf('localAgent', CommissionRecipientType.LOCAL_AGENT, false),
+      recipientPerf('guideName', CommissionRecipientType.GUIDE, false),
+      recipientPerf('driverName', CommissionRecipientType.DRIVER, false),
+    ]);
+
+    const companies = companyRows.map((r) => ({
+      name: r.name,
+      entries: Number(r.entries),
+      salesCount: Number(r.salesCount),
+      netSale: Number(r.netSale),
+      commission: Number(r.commission),
+    }));
+    const mapRecipient = (rows: any[]) =>
+      rows.map((r) => ({
+        name: r.name,
+        entries: Number(r.entries),
+        commission: Number(r.commission),
+      }));
+
+    return {
+      summary,
+      performance: {
+        salespersons,
+        companies,
+        agents: mapRecipient(agentRows),
+        guides: mapRecipient(guideRows),
+        drivers: mapRecipient(driverRows),
+      },
     };
   }
 

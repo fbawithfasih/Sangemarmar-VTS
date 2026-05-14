@@ -21,6 +21,7 @@ class ApiConstants {
   // Reports
   static const String reports = '/reports';
   static const String reportsExport = '/reports/export';
+  static const String adminDashboard = '/reports/admin-dashboard';
 
   // Users
   static const String users = '/users';

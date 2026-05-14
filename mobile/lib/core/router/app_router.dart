@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/dashboard/dashboard_screen.dart';
+import '../../features/dashboard/admin_dashboard_screen.dart';
 import '../../features/vehicle_entry/vehicle_entry_list_screen.dart';
 import '../../features/vehicle_entry/vehicle_entry_form_screen.dart';
 import '../../features/sales/sales_form_screen.dart';
@@ -38,7 +39,9 @@ final appRouter = GoRouter(
 
     if (!isLoggedIn && !isLoginPage) return '/login';
     if (isLoggedIn && isLoginPage) {
-      return (auth.user?.isManager ?? false) ? '/module-select' : '/dashboard';
+      if (auth.user?.isAdmin ?? false) return '/admin-dashboard';
+      if (auth.user?.isManager ?? false) return '/module-select';
+      return '/dashboard';
     }
     return null;
   },
@@ -46,6 +49,7 @@ final appRouter = GoRouter(
     GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
     GoRoute(path: '/module-select', builder: (_, __) => const ModuleSelectScreen()),
     GoRoute(path: '/dashboard', builder: (_, __) => const DashboardScreen()),
+    GoRoute(path: '/admin-dashboard', builder: (_, __) => const AdminDashboardScreen()),
     GoRoute(path: '/billing', builder: (_, __) => const BillingHomeScreen()),
     GoRoute(path: '/billing/orders', builder: (_, __) => const BillingListScreen()),
     GoRoute(path: '/billing/orders/new', builder: (_, __) => const BillingFormScreen()),

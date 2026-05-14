@@ -37,6 +37,12 @@ export class ReportsController {
     return this.reportsService.dashboard(this.applyScope(this.extractFilter(query), user));
   }
 
+  @Get('admin-dashboard')
+  @Roles(UserRole.ADMIN)
+  adminDashboard(@Query() query: any) {
+    return this.reportsService.adminDashboard(this.extractFilter(query));
+  }
+
   @Get('vehicles')
   vehicles(@Query() query: any) {
     return this.reportsService.vehicleEntries(this.extractFilter(query));
