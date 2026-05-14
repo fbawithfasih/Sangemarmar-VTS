@@ -83,7 +83,13 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     final ok = await auth.login(_emailCtrl.text.trim(), _passCtrl.text);
     if (ok && mounted) {
       final user = context.read<AuthProvider>().user;
-      context.go((user?.isManager ?? false) ? '/module-select' : '/dashboard');
+      if (user?.isAdmin ?? false) {
+        context.go('/admin-dashboard');
+      } else if (user?.isManager ?? false) {
+        context.go('/module-select');
+      } else {
+        context.go('/dashboard');
+      }
     }
   }
 

@@ -94,11 +94,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       appBar: SangemarmarAppBar(
         title: const Text('Admin Dashboard'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.apps),
-            tooltip: 'Modules',
-            onPressed: () => context.go('/module-select'),
-          ),
           Padding(
             padding: const EdgeInsets.only(right: 8),
             child: Row(

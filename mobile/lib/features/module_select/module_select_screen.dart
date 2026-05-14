@@ -53,6 +53,16 @@ class ModuleSelectScreen extends StatelessWidget {
               style: TextStyle(fontSize: 15, color: Colors.grey),
             ),
             const SizedBox(height: 16),
+            if (user?.isAdmin ?? false) ...[
+              _ModuleTile(
+                icon: Icons.dashboard,
+                label: 'Admin Dashboard',
+                subtitle: 'Business overview, performance & trends',
+                color: const Color(0xFF1B5E20),
+                onTap: () => context.go('/admin-dashboard'),
+              ),
+              const SizedBox(height: 16),
+            ],
             _ModuleTile(
               icon: Icons.directions_car,
               label: 'Vehicle Tracking System',
