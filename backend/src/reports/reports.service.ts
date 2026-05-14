@@ -309,73 +309,241 @@ export class ReportsService {
       doc.on('data', (c) => chunks.push(c));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
 
-      const period =
-        filter.dateFrom ? ` | ${filter.dateFrom} — ${filter.dateTo}` : '';
-      const title = `${type.toUpperCase()} REPORT${period}`;
-
-      doc.fontSize(16).font('Helvetica-Bold').text('Sangemarmar VTS', { align: 'center' });
-      doc.fontSize(12).font('Helvetica').text(title, { align: 'center' });
-      doc.moveDown();
-      doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke();
-      doc.moveDown(0.5);
+      // ── Layout constants ──────────────────────────────────────────────
+      const LEFT = 40;
+      const RIGHT = 555;
+      const WIDTH = RIGHT - LEFT;
+      const ROW_H = 18;
+      const BOTTOM = 800;
+      const GREEN = '#1B5E20';
+      const STRIPE = '#F3F6F2';
+      const BORDER = '#D5D5D5';
 
       const fmt = (n: number) =>
         n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const dt = (d: Date | string) =>
+        new Date(d).toLocaleDateString('en-GB');
+
+      // ── Page / table helpers ──────────────────────────────────────────
+      const drawPageHeader = () => {
+        const period = filter.dateFrom
+          ? `${filter.dateFrom} to ${filter.dateTo ?? filter.dateFrom}`
+          : 'All dates';
+        doc.fillColor(GREEN).font('Helvetica-Bold').fontSize(18)
+          .text('Sangemarmar VTS', LEFT, 40);
+        doc.fillColor('#000000').font('Helvetica-Bold').fontSize(11)
+          .text(`${type.toUpperCase()} REPORT`, LEFT, 64);
+        doc.fillColor('#666666').font('Helvetica').fontSize(9)
+          .text(`Period: ${period}`, LEFT, 79)
+          .text(`Generated: ${new Date().toLocaleString('en-GB')}`, LEFT, 79, {
+            width: WIDTH,
+            align: 'right',
+          });
+        doc.moveTo(LEFT, 96).lineTo(RIGHT, 96).strokeColor(GREEN).lineWidth(1.5).stroke();
+        doc.y = 104;
+      };
+
+      const drawSummary = (parts: string[]) => {
+        const boxTop = doc.y;
+        doc.rect(LEFT, boxTop, WIDTH, 22).fill(STRIPE);
+        doc.fillColor(GREEN).font('Helvetica-Bold').fontSize(9)
+          .text(parts.join('      '), LEFT + 8, boxTop + 7, { width: WIDTH - 16 });
+        doc.fillColor('#000000');
+        doc.y = boxTop + 22 + 10;
+      };
+
+      type Col = { header: string; width: number; align?: 'left' | 'right' | 'center' };
+
+      // Hard-truncate a string so it always renders on a single line within
+      // the cell. lineBreak:false alone is unreliable across pdfkit versions.
+      const clip = (text: string, width: number): string => {
+        const max = width - 10;
+        if (doc.widthOfString(text) <= max) return text;
+        let s = text;
+        while (s.length > 1 && doc.widthOfString(s + '...') > max) {
+          s = s.slice(0, -1);
+        }
+        return s.trimEnd() + '...';
+      };
+
+      const drawCells = (
+        cols: Col[],
+        values: string[],
+        y: number,
+        font: string,
+        size: number,
+      ) => {
+        doc.font(font).fontSize(size);
+        let x = LEFT;
+        for (let i = 0; i < cols.length; i++) {
+          doc.text(clip(values[i] ?? '', cols[i].width), x + 5, y + 6, {
+            width: cols[i].width - 10,
+            align: cols[i].align ?? 'left',
+            lineBreak: false,
+          });
+          x += cols[i].width;
+        }
+      };
+
+      const drawTableHeader = (cols: Col[]) => {
+        const y = doc.y;
+        doc.rect(LEFT, y, WIDTH, ROW_H).fill(GREEN);
+        doc.fillColor('#FFFFFF');
+        drawCells(cols, cols.map((c) => c.header), y, 'Helvetica-Bold', 8);
+        doc.fillColor('#000000');
+        doc.y = y + ROW_H;
+      };
+
+      const drawRow = (cols: Col[], values: string[], idx: number, bold = false) => {
+        if (doc.y + ROW_H > BOTTOM) {
+          doc.addPage();
+          drawPageHeader();
+          drawTableHeader(cols);
+        }
+        const y = doc.y;
+        if (bold) {
+          doc.rect(LEFT, y, WIDTH, ROW_H).fill('#E8EFE6');
+        } else if (idx % 2 === 1) {
+          doc.rect(LEFT, y, WIDTH, ROW_H).fill(STRIPE);
+        }
+        doc.fillColor('#000000');
+        drawCells(cols, values, y, bold ? 'Helvetica-Bold' : 'Helvetica', 8);
+        doc.y = y + ROW_H;
+      };
+
+      const closeTable = (cols: Col[]) => {
+        // outer border + column separators down the whole table is overkill;
+        // a bottom rule keeps it clean.
+        doc.moveTo(LEFT, doc.y).lineTo(RIGHT, doc.y)
+          .strokeColor(BORDER).lineWidth(0.5).stroke();
+      };
+
+      // ── Render ────────────────────────────────────────────────────────
+      drawPageHeader();
 
       if (type === 'sales') {
         const { data, totalGross, totalNet, count } = await this.sales(filter);
-        doc.font('Helvetica-Bold').fontSize(10).text(`Total Records: ${count}   Gross: ${fmt(totalGross)}   Net: ${fmt(totalNet)}`);
-        doc.moveDown(0.5);
-        for (const s of data) {
-          if (doc.y > 720) doc.addPage();
-          doc.font('Helvetica-Bold').fontSize(9)
-            .text(`${new Date(s.saleDate).toLocaleDateString()}  ${s.vehicleEntry?.vehicleNumber ?? '—'}  ${s.salesperson}`, { continued: true })
-            .font('Helvetica')
-            .text(`   Gross: ${fmt(Number(s.grossSale))}   Net: ${fmt(Number(s.netSale))}   [${s.orderType.replace('_', ' ')}]`);
-        }
+        drawSummary([
+          `Records: ${count}`,
+          `Gross: ${fmt(totalGross)}`,
+          `Net: ${fmt(totalNet)}`,
+        ]);
+        const cols: Col[] = [
+          { header: 'Sale Date', width: 70 },
+          { header: 'Vehicle No.', width: 85 },
+          { header: 'Salesperson', width: 120 },
+          { header: 'Order Type', width: 80 },
+          { header: 'Gross Sale', width: 80, align: 'right' },
+          { header: 'Net Sale', width: 80, align: 'right' },
+        ];
+        drawTableHeader(cols);
+        data.forEach((s, i) =>
+          drawRow(cols, [
+            dt(s.saleDate),
+            s.vehicleEntry?.vehicleNumber ?? '-',
+            s.salesperson,
+            s.orderType.replace('_', ' '),
+            fmt(Number(s.grossSale)),
+            fmt(Number(s.netSale)),
+          ], i),
+        );
+        drawRow(cols, ['', '', '', 'TOTAL', fmt(totalGross), fmt(totalNet)], 0, true);
+        closeTable(cols);
       }
 
       if (type === 'payments') {
         const { data, totalAmount, byMode, count } = await this.payments(filter);
-        doc.font('Helvetica-Bold').fontSize(10).text(`Total Records: ${count}   Total Amount: ${fmt(totalAmount)}`);
-        Object.entries(byMode).forEach(([m, a]) =>
-          doc.font('Helvetica').fontSize(9).text(`  ${m}: ${fmt(Number(a))}`),
+        drawSummary([
+          `Records: ${count}`,
+          `Total Amount: ${fmt(totalAmount)}`,
+          ...Object.entries(byMode).map(([m, a]) => `${m}: ${fmt(Number(a))}`),
+        ]);
+        const cols: Col[] = [
+          { header: 'Payment Date', width: 75 },
+          { header: 'Mode', width: 50, align: 'center' },
+          { header: 'Amount', width: 85, align: 'right' },
+          { header: 'Sale ID', width: 190 },
+          { header: 'Notes', width: 115 },
+        ];
+        drawTableHeader(cols);
+        data.forEach((p, i) =>
+          drawRow(cols, [
+            dt(p.paymentDate),
+            p.mode,
+            fmt(Number(p.amount)),
+            p.saleId,
+            p.notes ?? '',
+          ], i),
         );
-        doc.moveDown(0.5);
-        for (const p of data) {
-          if (doc.y > 720) doc.addPage();
-          doc.font('Helvetica').fontSize(9)
-            .text(`${new Date(p.paymentDate).toLocaleDateString()}  [${p.mode}]  ${fmt(Number(p.amount))}${p.notes ? '  — ' + p.notes : ''}`);
-        }
+        drawRow(cols, ['', 'TOTAL', fmt(totalAmount), '', ''], 0, true);
+        closeTable(cols);
       }
 
       if (type === 'vehicles') {
         const { data, count } = await this.vehicleEntries(filter);
-        doc.font('Helvetica-Bold').fontSize(10).text(`Total Records: ${count}`);
-        doc.moveDown(0.5);
-        for (const e of data) {
-          if (doc.y > 720) doc.addPage();
-          doc.font('Helvetica-Bold').fontSize(9).text(`${e.vehicleNumber}  [${e.status.replace(/_/g, ' ')}]  ${new Date(e.entryDate).toLocaleDateString()}`);
-          doc.font('Helvetica').fontSize(8).text(`  Driver: ${e.driverName}   Guide: ${e.guideName}   Agent: ${e.localAgent}   Company: ${e.companyName}`);
-        }
+        drawSummary([`Records: ${count}`]);
+        const cols: Col[] = [
+          { header: 'Entry Date', width: 55 },
+          { header: 'Vehicle No.', width: 70 },
+          { header: 'Driver', width: 78 },
+          { header: 'Guide', width: 78 },
+          { header: 'Local Agent', width: 72 },
+          { header: 'Company', width: 77 },
+          { header: 'Status', width: 85 },
+        ];
+        drawTableHeader(cols);
+        data.forEach((e, i) =>
+          drawRow(cols, [
+            dt(e.entryDate),
+            e.vehicleNumber,
+            e.driverName,
+            e.guideName,
+            e.localAgent,
+            e.companyName,
+            e.status.replace(/_/g, ' '),
+          ], i),
+        );
+        closeTable(cols);
       }
 
       if (type === 'commissions') {
         const { data, totalFinal, count, overrides } = await this.commissions(filter);
         const totalPaid = data.reduce((s, c) => s + Number(c.paidAmount ?? 0), 0);
-        doc.font('Helvetica-Bold').fontSize(10)
-          .text(`Total Records: ${count}   Total Commission: ${fmt(totalFinal)}   Total Paid: ${fmt(totalPaid)}   Overrides: ${overrides}`);
-        doc.moveDown(0.5);
-        for (const c of data) {
-          if (doc.y > 720) doc.addPage();
+        drawSummary([
+          `Records: ${count}`,
+          `Total Commission: ${fmt(totalFinal)}`,
+          `Total Paid: ${fmt(totalPaid)}`,
+          `Overrides: ${overrides}`,
+        ]);
+        const cols: Col[] = [
+          { header: 'Date', width: 62 },
+          { header: 'Recipient', width: 110 },
+          { header: 'Type', width: 70 },
+          { header: 'Rate %', width: 42, align: 'right' },
+          { header: 'Final', width: 70, align: 'right' },
+          { header: 'Payment Status', width: 99 },
+          { header: 'Paid Date', width: 62 },
+        ];
+        drawTableHeader(cols);
+        data.forEach((c, i) => {
           const paid = Number(c.paidAmount ?? 0);
           const final = Number(c.finalAmount);
-          const paymentStatus =
-            paid <= 0 ? 'Commission Pending' : paid < final ? `Partially Paid (${fmt(paid)})` : `Paid (${fmt(paid)})`;
-          const paidDate = c.paidAt ? ` on ${new Date(c.paidAt).toLocaleDateString()}` : '';
-          doc.font('Helvetica').fontSize(9)
-            .text(`${c.recipientName} [${c.recipientType.replace('_', ' ')}]  ${c.rate}%  →  ${fmt(final)}${c.isOverridden ? ' [OVERRIDDEN]' : ''}  —  ${paymentStatus}${paidDate}`);
-        }
+          const status =
+            paid <= 0 ? 'Commission Pending'
+              : paid < final ? `Partial (${fmt(paid)})`
+                : 'Paid';
+          drawRow(cols, [
+            dt(c.createdAt),
+            c.recipientName,
+            c.recipientType.replace('_', ' '),
+            `${Number(c.rate)}%`,
+            fmt(final),
+            status,
+            c.paidAt ? dt(c.paidAt) : '-',
+          ], i);
+        });
+        drawRow(cols, ['', 'TOTAL', '', '', fmt(totalFinal), `Paid: ${fmt(totalPaid)}`, ''], 0, true);
+        closeTable(cols);
       }
 
       doc.end();
