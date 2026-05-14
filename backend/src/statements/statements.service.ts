@@ -239,89 +239,181 @@ export class StatementsService {
       doc.on('data', (c) => chunks.push(c));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
 
+      // ── Layout constants ──────────────────────────────────────────────
+      const LEFT = 40;
+      const RIGHT = 555;
+      const WIDTH = RIGHT - LEFT;
+      const ROW_H = 18;
+      const BOTTOM = 800;
+      const GREEN = '#1B5E20';
+      const STRIPE = '#F3F6F2';
+      const BORDER = '#D5D5D5';
+
       const fmt = (n: number) =>
         n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const dt = (d: Date | string) => new Date(d).toLocaleDateString('en-GB');
 
-      // Header
-      doc.fontSize(18).font('Helvetica-Bold').text('Sangemarmar VTS', { align: 'center' });
-      doc.fontSize(13).font('Helvetica').text(
-        `${data.type.replace('_', ' ')} Statement — ${data.name}`,
-        { align: 'center' },
-      );
-      if (data.dateFrom) {
-        doc.fontSize(10).text(`Period: ${data.dateFrom} to ${data.dateTo}`, { align: 'center' });
-      }
-      doc.moveDown();
-      doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke();
-      doc.moveDown(0.5);
+      // ── Page / table helpers ──────────────────────────────────────────
+      const drawPageHeader = () => {
+        const period = data.dateFrom
+          ? `${data.dateFrom} to ${data.dateTo ?? data.dateFrom}`
+          : 'All dates';
+        doc.fillColor(GREEN).font('Helvetica-Bold').fontSize(18)
+          .text('Sangemarmar VTS', LEFT, 40);
+        doc.fillColor('#000000').font('Helvetica-Bold').fontSize(11)
+          .text(`${data.type.replace('_', ' ')} STATEMENT - ${data.name}`, LEFT, 64);
+        doc.fillColor('#666666').font('Helvetica').fontSize(9)
+          .text(`Period: ${period}`, LEFT, 79)
+          .text(`Generated: ${new Date().toLocaleString('en-GB')}`, LEFT, 79, {
+            width: WIDTH,
+            align: 'right',
+          });
+        doc.moveTo(LEFT, 96).lineTo(RIGHT, 96).strokeColor(GREEN).lineWidth(1.5).stroke();
+        doc.y = 104;
+      };
 
-      // Summary box
-      doc.fontSize(11).font('Helvetica-Bold').text('Summary');
-      doc.font('Helvetica').fontSize(10);
+      type Col = { header: string; width: number; align?: 'left' | 'right' | 'center' };
+
+      const clip = (text: string, width: number): string => {
+        const max = width - 10;
+        if (doc.widthOfString(text) <= max) return text;
+        let str = text;
+        while (str.length > 1 && doc.widthOfString(str + '...') > max) {
+          str = str.slice(0, -1);
+        }
+        return str.trimEnd() + '...';
+      };
+
+      const drawCells = (
+        cols: Col[],
+        values: string[],
+        y: number,
+        font: string,
+        size: number,
+      ) => {
+        doc.font(font).fontSize(size);
+        let x = LEFT;
+        for (let i = 0; i < cols.length; i++) {
+          doc.text(clip(values[i] ?? '', cols[i].width), x + 5, y + 6, {
+            width: cols[i].width - 10,
+            align: cols[i].align ?? 'left',
+            lineBreak: false,
+          });
+          x += cols[i].width;
+        }
+      };
+
+      const drawTableHeader = (cols: Col[]) => {
+        const y = doc.y;
+        doc.rect(LEFT, y, WIDTH, ROW_H).fill(GREEN);
+        doc.fillColor('#FFFFFF');
+        drawCells(cols, cols.map((c) => c.header), y, 'Helvetica-Bold', 8);
+        doc.fillColor('#000000');
+        doc.y = y + ROW_H;
+      };
+
+      const drawRow = (cols: Col[], values: string[], idx: number, bold = false) => {
+        if (doc.y + ROW_H > BOTTOM) {
+          doc.addPage();
+          drawPageHeader();
+          drawTableHeader(cols);
+        }
+        const y = doc.y;
+        if (bold) {
+          doc.rect(LEFT, y, WIDTH, ROW_H).fill('#E8EFE6');
+        } else if (idx % 2 === 1) {
+          doc.rect(LEFT, y, WIDTH, ROW_H).fill(STRIPE);
+        }
+        doc.fillColor('#000000');
+        drawCells(cols, values, y, bold ? 'Helvetica-Bold' : 'Helvetica', 8);
+        doc.y = y + ROW_H;
+      };
+
+      // ── Render ────────────────────────────────────────────────────────
+      drawPageHeader();
+
+      // Summary band — 3-column key/value grid
       const s = data.summary;
-      const rows = [
+      const summaryPairs: [string, string][] = [
         ['Vehicle Entries', s.totalVehicleEntries.toString()],
         ['Total Sales', s.totalSales.toString()],
         ['Total Gross Sale', fmt(s.totalGrossSale)],
         ['Total Net Sale', fmt(s.totalNetSale)],
         ['Total Payments', fmt(s.totalPayments)],
-        ['Total Commission Earned', fmt(s.totalCommission)],
+        ['Total Commission', fmt(s.totalCommission)],
       ];
-      for (const [label, val] of rows) {
-        doc.text(label, 40, doc.y, { continued: true, width: 260 });
-        doc.text(val, { align: 'right' });
-      }
-      doc.moveDown();
-      doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke();
-      doc.moveDown(0.5);
+      const sumTop = doc.y;
+      const sumH = 56;
+      doc.rect(LEFT, sumTop, WIDTH, sumH).fill(STRIPE);
+      const cellW = WIDTH / 3;
+      summaryPairs.forEach(([label, val], i) => {
+        const col = i % 3;
+        const rowN = Math.floor(i / 3);
+        const cx = LEFT + col * cellW + 10;
+        const cy = sumTop + 8 + rowN * 24;
+        doc.fillColor('#666666').font('Helvetica').fontSize(8)
+          .text(label, cx, cy, { width: cellW - 20, lineBreak: false });
+        doc.fillColor(GREEN).font('Helvetica-Bold').fontSize(11)
+          .text(val, cx, cy + 9, { width: cellW - 20, lineBreak: false });
+      });
+      doc.fillColor('#000000');
+      doc.y = sumTop + sumH + 12;
 
-      // Details
-      doc.fontSize(11).font('Helvetica-Bold').text('Transaction Details');
-      doc.moveDown(0.5);
+      // Transaction table
+      const cols: Col[] = [
+        { header: 'Entry Date', width: 56 },
+        { header: 'Vehicle No.', width: 70 },
+        { header: 'Sale Date', width: 56 },
+        { header: 'Order Type', width: 78 },
+        { header: 'Gross', width: 58, align: 'right' },
+        { header: 'Net', width: 58, align: 'right' },
+        { header: 'Payments', width: 54, align: 'right' },
+        { header: 'Rate', width: 33, align: 'right' },
+        { header: 'Comm.', width: 52, align: 'right' },
+      ];
+      drawTableHeader(cols);
 
+      let idx = 0;
       for (const { entry, sales } of data.entries) {
-        doc
-          .fontSize(10)
-          .font('Helvetica-Bold')
-          .text(`${entry.vehicleNumber}  |  ${new Date(entry.entryDate).toLocaleDateString()}`, {
-            underline: true,
-          });
-        doc
-          .font('Helvetica')
-          .fontSize(9)
-          .text(
-            `Driver: ${entry.driverName}   Guide: ${entry.guideName}   Agent: ${entry.localAgent}   Company: ${entry.companyName}`,
-          );
-
         if (sales.length === 0) {
-          doc.text('  No sales recorded');
+          drawRow(cols, [
+            dt(entry.entryDate),
+            entry.vehicleNumber,
+            '-', 'No sale', '-', '-', '-', '-', '-',
+          ], idx++);
+          continue;
         }
-
-        for (const { sale, payments, paymentTotal, commission } of sales) {
-          doc.moveDown(0.3);
-          doc.font('Helvetica-Bold').fontSize(9).text(
-            `  Sale — ${new Date(sale.saleDate).toLocaleDateString()}  |  ${sale.orderType.replace('_', ' ')}`,
-          );
-          doc.font('Helvetica').fontSize(9);
-          doc.text(`    Gross: ${fmt(Number(sale.grossSale))}   Net: ${fmt(Number(sale.netSale))}`);
-          doc.text(`    Payments: ${fmt(paymentTotal)}`);
-          if (commission) {
-            doc.text(
-              `    Commission (${commission.rate}%): ${fmt(Number(commission.finalAmount))}${commission.isOverridden ? ' [overridden]' : ''}`,
-            );
-          }
-
-          // Payment breakdown
-          for (const p of payments) {
-            doc.text(
-              `      · ${p.mode}  ${fmt(Number(p.amount))}  ${new Date(p.paymentDate).toLocaleDateString()}`,
-            );
-          }
+        for (const { sale, paymentTotal, commission } of sales) {
+          drawRow(cols, [
+            dt(entry.entryDate),
+            entry.vehicleNumber,
+            dt(sale.saleDate),
+            sale.orderType.replace('_', ' '),
+            fmt(Number(sale.grossSale)),
+            fmt(Number(sale.netSale)),
+            fmt(paymentTotal),
+            commission ? `${Number(commission.rate)}%` : '-',
+            commission
+              ? fmt(Number(commission.finalAmount)) + (commission.isOverridden ? '*' : '')
+              : '-',
+          ], idx++);
         }
-
-        doc.moveDown(0.5);
-        if (doc.y > 720) doc.addPage();
       }
+
+      drawRow(cols, [
+        'TOTAL', '', '', '',
+        fmt(s.totalGrossSale),
+        fmt(s.totalNetSale),
+        fmt(s.totalPayments),
+        '',
+        fmt(s.totalCommission),
+      ], 0, true);
+
+      doc.moveTo(LEFT, doc.y).lineTo(RIGHT, doc.y)
+        .strokeColor(BORDER).lineWidth(0.5).stroke();
+
+      doc.fillColor('#999999').font('Helvetica').fontSize(7)
+        .text('* commission amount was manually overridden', LEFT, doc.y + 6);
 
       doc.end();
     });
