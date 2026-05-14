@@ -652,7 +652,7 @@ class _PerfSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const limit = 10;
+    const limit = 5;
     final visible = expanded ? rows : rows.take(limit).toList();
 
     return Card(
