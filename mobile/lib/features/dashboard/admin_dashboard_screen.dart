@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -86,6 +87,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
+  String _compact(num v) {
+    final n = v.abs();
+    if (n >= 10000000) return '₹${(v / 10000000).toStringAsFixed(1)}Cr';
+    if (n >= 100000) return '₹${(v / 100000).toStringAsFixed(1)}L';
+    if (n >= 1000) return '₹${(v / 1000).toStringAsFixed(1)}k';
+    return '₹${v.toStringAsFixed(0)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = context.select<AuthProvider, dynamic>((p) => p.user);
@@ -170,6 +179,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     if (data == null) return const Center(child: Text('No data'));
     final summary = data['summary'] as Map<String, dynamic>;
     final performance = data['performance'] as Map<String, dynamic>;
+    final trend = (data['trend'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final bucketUnit = (data['bucketUnit'] as String?) ?? 'day';
+    final companies = (performance['companies'] as List).cast<Map<String, dynamic>>();
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -178,7 +190,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           _buildSummary(summary),
-          const SizedBox(height: 20),
+          const SizedBox(height: 8),
+          _chartCard(
+            'Sales Trend',
+            Icons.show_chart,
+            const Color(0xFF2E7D32),
+            _buildTrendChart(trend, bucketUnit),
+          ),
+          _chartCard(
+            'Commission: Paid vs Pending',
+            Icons.pie_chart,
+            const Color(0xFF1565C0),
+            _buildCommissionDonut(summary),
+          ),
+          _chartCard(
+            'Top Companies by Net Sales',
+            Icons.bar_chart,
+            const Color(0xFF6A1B9A),
+            _buildTopCompaniesBar(companies),
+          ),
+          const SizedBox(height: 12),
           _PerfSection(
             title: 'Salesperson Performance',
             icon: Icons.person,
@@ -195,7 +226,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             title: 'Company Performance',
             icon: Icons.business,
             color: const Color(0xFF1565C0),
-            rows: (performance['companies'] as List).cast<Map<String, dynamic>>(),
+            rows: companies,
             expanded: _expanded.contains('companies'),
             onToggle: () => _toggle('companies'),
             metricsBuilder: (r) => [
@@ -254,12 +285,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     });
   }
 
+  // ── Summary cards ───────────────────────────────────────────────────────
   Widget _buildSummary(Map<String, dynamic> s) {
     final cards = [
       _statCard('Vehicle Entries', _fmtInt.format(s['vehicleEntries']), Icons.directions_car, Colors.blue),
       _statCard('Total Sales', _fmtInt.format(s['salesCount']), Icons.receipt_long, Colors.indigo),
       _statCard('Gross Sales', _fmt.format(s['grossSales']), Icons.trending_up, Colors.teal),
       _statCard('Net Sales', _fmt.format(s['netSales']), Icons.monetization_on, Colors.green),
+      _statCard('Payments', _fmt.format(s['totalPayments'] ?? 0), Icons.payments, const Color(0xFF00695C)),
+      _statCard('Commission Total', _fmt.format(s['commissionTotal']), Icons.percent, const Color(0xFF6A1B9A)),
       _statCard('Commission Paid', _fmt.format(s['commissionPaid']), Icons.check_circle, const Color(0xFF1565C0)),
       _statCard('Commission Pending', _fmt.format(s['commissionPending']), Icons.hourglass_bottom, Colors.redAccent),
     ];
@@ -291,13 +325,304 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               const SizedBox(height: 8),
               Text(
                 value,
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color),
+                style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold, color: color),
               ),
               Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
             ],
           ),
         ),
       );
+
+  // ── Chart shell ─────────────────────────────────────────────────────────
+  Widget _chartCard(String title, IconData icon, Color color, Widget chart) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: color, size: 20),
+                const SizedBox(width: 8),
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SizedBox(height: 200, child: chart),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Sales trend line chart ──────────────────────────────────────────────
+  Widget _buildTrendChart(List<Map<String, dynamic>> trend, String unit) {
+    if (trend.isEmpty) {
+      return const Center(child: Text('No sales in this period', style: TextStyle(color: Colors.grey)));
+    }
+    final gross = <FlSpot>[];
+    final net = <FlSpot>[];
+    for (var i = 0; i < trend.length; i++) {
+      gross.add(FlSpot(i.toDouble(), (trend[i]['grossSales'] as num).toDouble()));
+      net.add(FlSpot(i.toDouble(), (trend[i]['netSales'] as num).toDouble()));
+    }
+    final maxY = [
+      ...gross.map((s) => s.y),
+      ...net.map((s) => s.y),
+    ].fold<double>(0, (m, v) => v > m ? v : m);
+    final labelEvery = (trend.length / 5).ceil().clamp(1, trend.length);
+
+    String bottomLabel(int i) {
+      final d = DateTime.tryParse(trend[i]['label'] as String);
+      if (d == null) return '';
+      return unit == 'month'
+          ? DateFormat('MMM').format(d)
+          : DateFormat('d/M').format(d);
+    }
+
+    return Column(
+      children: [
+        Expanded(
+          child: LineChart(
+            LineChartData(
+              minY: 0,
+              maxY: maxY == 0 ? 1 : maxY * 1.2,
+              gridData: FlGridData(
+                show: true,
+                drawVerticalLine: false,
+                getDrawingHorizontalLine: (_) =>
+                    FlLine(color: Colors.grey.shade200, strokeWidth: 1),
+              ),
+              borderData: FlBorderData(show: false),
+              titlesData: FlTitlesData(
+                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 44,
+                    getTitlesWidget: (v, _) => Text(
+                      _compact(v),
+                      style: const TextStyle(fontSize: 9, color: Colors.grey),
+                    ),
+                  ),
+                ),
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 22,
+                    interval: 1,
+                    getTitlesWidget: (v, _) {
+                      final i = v.round();
+                      if (i < 0 || i >= trend.length || i % labelEvery != 0) {
+                        return const SizedBox.shrink();
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          bottomLabel(i),
+                          style: const TextStyle(fontSize: 9, color: Colors.grey),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              lineTouchData: const LineTouchData(enabled: true),
+              lineBarsData: [
+                LineChartBarData(
+                  spots: gross,
+                  isCurved: true,
+                  color: Colors.teal.shade300,
+                  barWidth: 2,
+                  dotData: const FlDotData(show: false),
+                ),
+                LineChartBarData(
+                  spots: net,
+                  isCurved: true,
+                  color: const Color(0xFF2E7D32),
+                  barWidth: 3,
+                  dotData: const FlDotData(show: false),
+                  belowBarData: BarAreaData(
+                    show: true,
+                    color: const Color(0xFF2E7D32).withValues(alpha: 0.10),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _legendDot(Colors.teal.shade300, 'Gross'),
+            const SizedBox(width: 16),
+            _legendDot(const Color(0xFF2E7D32), 'Net'),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _legendDot(Color color, String label) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(width: 10, height: 10, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+          const SizedBox(width: 4),
+          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+        ],
+      );
+
+  // ── Commission donut ────────────────────────────────────────────────────
+  Widget _buildCommissionDonut(Map<String, dynamic> s) {
+    final paid = (s['commissionPaid'] as num).toDouble();
+    final pending = (s['commissionPending'] as num).toDouble();
+    final total = paid + pending;
+    if (total <= 0) {
+      return const Center(child: Text('No commissions in this period', style: TextStyle(color: Colors.grey)));
+    }
+    final paidPct = (paid / total * 100);
+    final pendingPct = (pending / total * 100);
+
+    return Row(
+      children: [
+        Expanded(
+          flex: 3,
+          child: PieChart(
+            PieChartData(
+              centerSpaceRadius: 36,
+              sectionsSpace: 2,
+              sections: [
+                PieChartSectionData(
+                  value: paid <= 0 ? 0.0001 : paid,
+                  color: const Color(0xFF1565C0),
+                  title: '${paidPct.toStringAsFixed(0)}%',
+                  radius: 46,
+                  titleStyle: const TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+                PieChartSectionData(
+                  value: pending <= 0 ? 0.0001 : pending,
+                  color: Colors.redAccent,
+                  title: '${pendingPct.toStringAsFixed(0)}%',
+                  radius: 46,
+                  titleStyle: const TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Expanded(
+          flex: 2,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _donutLegend(const Color(0xFF1565C0), 'Paid', _fmt.format(paid)),
+              const SizedBox(height: 12),
+              _donutLegend(Colors.redAccent, 'Pending', _fmt.format(pending)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _donutLegend(Color color, String label, String value) => Row(
+        children: [
+          Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+              Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ],
+      );
+
+  // ── Top companies bar chart ─────────────────────────────────────────────
+  Widget _buildTopCompaniesBar(List<Map<String, dynamic>> companies) {
+    final top = companies.take(5).toList();
+    if (top.isEmpty) {
+      return const Center(child: Text('No company data in this period', style: TextStyle(color: Colors.grey)));
+    }
+    final maxY = top
+        .map((c) => (c['netSale'] as num).toDouble())
+        .fold<double>(0, (m, v) => v > m ? v : m);
+
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        maxY: maxY == 0 ? 1 : maxY * 1.2,
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: (_) =>
+              FlLine(color: Colors.grey.shade200, strokeWidth: 1),
+        ),
+        borderData: FlBorderData(show: false),
+        barTouchData: BarTouchData(
+          enabled: true,
+          touchTooltipData: BarTouchTooltipData(
+            getTooltipItem: (group, _, rod, __) => BarTooltipItem(
+              '${top[group.x]['name']}\n${_fmt.format(rod.toY)}',
+              const TextStyle(color: Colors.white, fontSize: 11),
+            ),
+          ),
+        ),
+        titlesData: FlTitlesData(
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 44,
+              getTitlesWidget: (v, _) =>
+                  Text(_compact(v), style: const TextStyle(fontSize: 9, color: Colors.grey)),
+            ),
+          ),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 30,
+              getTitlesWidget: (v, _) {
+                final i = v.round();
+                if (i < 0 || i >= top.length) return const SizedBox.shrink();
+                final name = (top[i]['name'] as String?) ?? '';
+                return Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    name.length > 8 ? '${name.substring(0, 8)}…' : name,
+                    style: const TextStyle(fontSize: 9, color: Colors.grey),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        barGroups: [
+          for (var i = 0; i < top.length; i++)
+            BarChartGroupData(
+              x: i,
+              barRods: [
+                BarChartRodData(
+                  toY: (top[i]['netSale'] as num).toDouble(),
+                  color: const Color(0xFF6A1B9A),
+                  width: 22,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 class _PerfSection extends StatelessWidget {

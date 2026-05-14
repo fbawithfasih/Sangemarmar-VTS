@@ -26,8 +26,18 @@ class SangemarmarAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
     final isManager = user?.isManager ?? false;
-    final onModuleSelect =
-        GoRouterState.of(context).matchedLocation == '/module-select';
+    final isAdmin = user?.isAdmin ?? false;
+    final loc = GoRouterState.of(context).matchedLocation;
+    final onModuleSelect = loc == '/module-select';
+    final onAdminDash = loc == '/admin-dashboard';
+
+    final adminDashBtn = (isAdmin && !onAdminDash)
+        ? IconButton(
+            onPressed: () => context.go('/admin-dashboard'),
+            icon: const Icon(Icons.dashboard_outlined, size: 20, color: Colors.white),
+            tooltip: 'Admin Dashboard',
+          )
+        : null;
 
     final mainMenuBtn = (isManager && !onModuleSelect)
         ? TextButton.icon(
@@ -44,6 +54,7 @@ class SangemarmarAppBar extends StatelessWidget implements PreferredSizeWidget {
         : null;
 
     final mergedActions = [
+      if (adminDashBtn != null) adminDashBtn,
       if (mainMenuBtn != null) mainMenuBtn,
       ...?actions,
     ];

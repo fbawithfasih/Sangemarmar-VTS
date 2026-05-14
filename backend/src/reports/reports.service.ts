@@ -212,7 +212,7 @@ export class ReportsService {
     };
 
     // ── Summary ───────────────────────────────────────────────────────────
-    const [vAgg, sAgg, cAgg] = await Promise.all([
+    const [vAgg, sAgg, pAgg, cAgg] = await Promise.all([
       applyRange(this.vehicleRepo.createQueryBuilder('ve'), 've.entryDate')
         .select('COUNT(*)', 'count')
         .getRawOne<{ count: string }>(),
@@ -221,6 +221,9 @@ export class ReportsService {
         .addSelect('COALESCE(SUM(s.grossSale),0)', 'gross')
         .addSelect('COALESCE(SUM(s.netSale),0)', 'net')
         .getRawOne<{ count: string; gross: string; net: string }>(),
+      applyRange(this.paymentRepo.createQueryBuilder('p'), 'p.paymentDate')
+        .select('COALESCE(SUM(p.amount),0)', 'total')
+        .getRawOne<{ total: string }>(),
       applyRange(this.commissionRepo.createQueryBuilder('c'), 'c.createdAt')
         .select('COALESCE(SUM(c.finalAmount),0)', 'total')
         .addSelect('COALESCE(SUM(COALESCE(c.paidAmount,0)),0)', 'paid')
@@ -234,6 +237,7 @@ export class ReportsService {
       salesCount: Number(sAgg?.count ?? 0),
       grossSales: Number(sAgg?.gross ?? 0),
       netSales: Number(sAgg?.net ?? 0),
+      totalPayments: Number(pAgg?.total ?? 0),
       commissionPaid,
       commissionPending: commissionTotal - commissionPaid,
       commissionTotal,
@@ -310,8 +314,64 @@ export class ReportsService {
         commission: Number(r.commission),
       }));
 
+    // ── Trend (time-bucketed sales + commission) ──────────────────────────
+    // Daily buckets for short ranges, monthly for long ones (> ~3 months).
+    const rangeDays =
+      filter.dateFrom && filter.dateTo
+        ? Math.round(
+            (istDayEnd(filter.dateTo).getTime() -
+              istDayStart(filter.dateFrom).getTime()) /
+              86400000,
+          )
+        : 365;
+    const bucketUnit: 'day' | 'month' = rangeDays > 92 ? 'month' : 'day';
+
+    const [salesTrendRows, commTrendRows] = await Promise.all([
+      applyRange(this.saleRepo.createQueryBuilder('s'), 's.saleDate')
+        .select(`date_trunc('${bucketUnit}', s.saleDate)`, 'bucket')
+        .addSelect('COALESCE(SUM(s.grossSale),0)', 'gross')
+        .addSelect('COALESCE(SUM(s.netSale),0)', 'net')
+        .groupBy(`date_trunc('${bucketUnit}', s.saleDate)`)
+        .orderBy(`date_trunc('${bucketUnit}', s.saleDate)`, 'ASC')
+        .getRawMany<{ bucket: Date; gross: string; net: string }>(),
+      applyRange(this.commissionRepo.createQueryBuilder('c'), 'c.createdAt')
+        .select(`date_trunc('${bucketUnit}', c.createdAt)`, 'bucket')
+        .addSelect('COALESCE(SUM(c.finalAmount),0)', 'commission')
+        .groupBy(`date_trunc('${bucketUnit}', c.createdAt)`)
+        .orderBy(`date_trunc('${bucketUnit}', c.createdAt)`, 'ASC')
+        .getRawMany<{ bucket: Date; commission: string }>(),
+    ]);
+
+    const keyOf = (d: Date) => new Date(d).toISOString().slice(0, 10);
+    const trendMap = new Map<
+      string,
+      { label: string; grossSales: number; netSales: number; commission: number }
+    >();
+    for (const r of salesTrendRows) {
+      const k = keyOf(r.bucket);
+      trendMap.set(k, {
+        label: k,
+        grossSales: Number(r.gross),
+        netSales: Number(r.net),
+        commission: 0,
+      });
+    }
+    for (const r of commTrendRows) {
+      const k = keyOf(r.bucket);
+      const e =
+        trendMap.get(k) ??
+        { label: k, grossSales: 0, netSales: 0, commission: 0 };
+      e.commission = Number(r.commission);
+      trendMap.set(k, e);
+    }
+    const trend = [...trendMap.values()].sort((a, b) =>
+      a.label.localeCompare(b.label),
+    );
+
     return {
       summary,
+      bucketUnit,
+      trend,
       performance: {
         salespersons,
         companies,
