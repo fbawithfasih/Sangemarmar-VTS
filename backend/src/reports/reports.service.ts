@@ -266,21 +266,37 @@ export class ReportsService {
         { header: 'Calculated', key: 'calculated', width: 14 },
         { header: 'Final', key: 'final', width: 14 },
         { header: 'Overridden', key: 'overridden', width: 12 },
+        { header: 'Payment Status', key: 'paymentStatus', width: 18 },
+        { header: 'Paid Amount', key: 'paidAmount', width: 14 },
+        { header: 'Paid Date', key: 'paidDate', width: 14 },
       ];
       ws.getRow(1).font = { bold: true };
-      data.forEach((c) =>
+      let totalPaid = 0;
+      data.forEach((c) => {
+        const paid = Number(c.paidAmount ?? 0);
+        const final = Number(c.finalAmount);
+        totalPaid += paid;
+        const paymentStatus =
+          paid <= 0 ? 'Commission Pending' : paid < final ? 'Partially Paid' : 'Paid';
         ws.addRow({
           date: new Date(c.createdAt).toLocaleDateString(),
           recipient: c.recipientName,
           type: c.recipientType.replace('_', ' '),
           rate: +Number(c.rate).toFixed(2),
           calculated: +Number(c.calculatedAmount).toFixed(2),
-          final: +Number(c.finalAmount).toFixed(2),
+          final: +final.toFixed(2),
           overridden: c.isOverridden ? 'Yes' : 'No',
-        }),
-      );
+          paymentStatus,
+          paidAmount: paid > 0 ? +paid.toFixed(2) : '',
+          paidDate: c.paidAt ? new Date(c.paidAt).toLocaleDateString() : '',
+        });
+      });
       ws.addRow({});
-      ws.addRow({ recipient: 'TOTAL', final: +totalFinal.toFixed(2) }).font = { bold: true };
+      ws.addRow({
+        recipient: 'TOTAL',
+        final: +totalFinal.toFixed(2),
+        paidAmount: +totalPaid.toFixed(2),
+      }).font = { bold: true };
     }
 
     return wb.xlsx.writeBuffer() as unknown as Promise<Buffer>;
@@ -346,13 +362,19 @@ export class ReportsService {
 
       if (type === 'commissions') {
         const { data, totalFinal, count, overrides } = await this.commissions(filter);
+        const totalPaid = data.reduce((s, c) => s + Number(c.paidAmount ?? 0), 0);
         doc.font('Helvetica-Bold').fontSize(10)
-          .text(`Total Records: ${count}   Total Commission: ${fmt(totalFinal)}   Overrides: ${overrides}`);
+          .text(`Total Records: ${count}   Total Commission: ${fmt(totalFinal)}   Total Paid: ${fmt(totalPaid)}   Overrides: ${overrides}`);
         doc.moveDown(0.5);
         for (const c of data) {
           if (doc.y > 720) doc.addPage();
+          const paid = Number(c.paidAmount ?? 0);
+          const final = Number(c.finalAmount);
+          const paymentStatus =
+            paid <= 0 ? 'Commission Pending' : paid < final ? `Partially Paid (${fmt(paid)})` : `Paid (${fmt(paid)})`;
+          const paidDate = c.paidAt ? ` on ${new Date(c.paidAt).toLocaleDateString()}` : '';
           doc.font('Helvetica').fontSize(9)
-            .text(`${c.recipientName} [${c.recipientType.replace('_', ' ')}]  ${c.rate}%  →  ${fmt(Number(c.finalAmount))}${c.isOverridden ? ' [OVERRIDDEN]' : ''}`);
+            .text(`${c.recipientName} [${c.recipientType.replace('_', ' ')}]  ${c.rate}%  →  ${fmt(final)}${c.isOverridden ? ' [OVERRIDDEN]' : ''}  —  ${paymentStatus}${paidDate}`);
         }
       }
 
