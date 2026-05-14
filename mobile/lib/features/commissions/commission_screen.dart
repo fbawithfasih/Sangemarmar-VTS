@@ -98,7 +98,10 @@ class _CommissionScreenState extends State<CommissionScreen> {
       try {
         await _api.patch(
           '${ApiConstants.commissions}/${c.id}/override',
-          data: {'finalAmount': _calcAmount(c.id)},
+          data: {
+            'finalAmount': _calcAmount(c.id),
+            'rate': _pctValue(c.id),
+          },
         );
       } catch (e) {
         String msg = c.recipientLabel;
