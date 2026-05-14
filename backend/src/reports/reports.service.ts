@@ -44,6 +44,25 @@ function buildDateCondition(field: string, dateFrom?: string, dateTo?: string) {
 
 export type ExportReportType = 'sales' | 'payments' | 'vehicles' | 'commissions';
 
+// Older commission records were overridden before the rate was persisted, so
+// their stored rate is 0. Fall back to deriving it from the amounts so the
+// commission rate is never shown as 0 when a real commission exists.
+function displayRate(rate: any, finalAmount: any, netSale: any): number {
+  const r = Number(rate) || 0;
+  if (r > 0) return r;
+  const f = Number(finalAmount) || 0;
+  const n = Number(netSale) || 0;
+  if (f > 0 && n > 0) return (f / n) * 100;
+  return 0;
+}
+
+function rateLabel(rate: any, finalAmount: any, netSale: any): string {
+  const r = displayRate(rate, finalAmount, netSale);
+  if (r <= 0) return '-';
+  // Trim trailing zeros: 15 -> "15%", 1.5 -> "1.5%", 9.4666 -> "9.47%"
+  return `${parseFloat(r.toFixed(2))}%`;
+}
+
 @Injectable()
 export class ReportsService {
   constructor(
@@ -282,7 +301,7 @@ export class ReportsService {
           date: new Date(c.createdAt).toLocaleDateString(),
           recipient: c.recipientName,
           type: c.recipientType.replace('_', ' '),
-          rate: +Number(c.rate).toFixed(2),
+          rate: +displayRate(c.rate, c.finalAmount, c.sale?.netSale).toFixed(2),
           calculated: +Number(c.calculatedAmount).toFixed(2),
           final: +final.toFixed(2),
           overridden: c.isOverridden ? 'Yes' : 'No',
@@ -536,7 +555,7 @@ export class ReportsService {
             dt(c.createdAt),
             c.recipientName,
             c.recipientType.replace('_', ' '),
-            `${Number(c.rate)}%`,
+            rateLabel(c.rate, c.finalAmount, c.sale?.netSale),
             fmt(final),
             status,
             c.paidAt ? dt(c.paidAt) : '-',

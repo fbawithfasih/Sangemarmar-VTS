@@ -26,6 +26,24 @@ const TYPE_TO_COMMISSION: Record<StatementType, CommissionRecipientType> = {
 
 const UNIQUE_NAMES_TTL_MS = 5 * 60 * 1000;
 
+// Older commission records were overridden before the rate was persisted, so
+// their stored rate is 0. Fall back to deriving it from the amounts so the
+// commission rate is never shown as 0 when a real commission exists.
+function displayRate(rate: any, finalAmount: any, netSale: any): number {
+  const r = Number(rate) || 0;
+  if (r > 0) return r;
+  const f = Number(finalAmount) || 0;
+  const n = Number(netSale) || 0;
+  if (f > 0 && n > 0) return (f / n) * 100;
+  return 0;
+}
+
+function rateLabel(rate: any, finalAmount: any, netSale: any): string {
+  const r = displayRate(rate, finalAmount, netSale);
+  if (r <= 0) return '-';
+  return `${parseFloat(r.toFixed(2))}%`;
+}
+
 @Injectable()
 export class StatementsService {
   private readonly uniqueNamesCache = new Map<StatementType, { expiresAt: number; value: string[] }>();
@@ -220,7 +238,9 @@ export class StatementsService {
           netSale: +Number(sale.netSale).toFixed(2),
           orderType: sale.orderType.replace('_', ' '),
           payTotal: +paymentTotal.toFixed(2),
-          commRate: commission ? `${commission.rate}%` : '—',
+          commRate: commission
+            ? rateLabel(commission.rate, commission.finalAmount, sale.netSale)
+            : '—',
           commAmt: commission ? +Number(commission.finalAmount).toFixed(2) : 0,
           override: commission?.isOverridden ? 'Yes' : 'No',
         });
@@ -392,7 +412,9 @@ export class StatementsService {
             fmt(Number(sale.grossSale)),
             fmt(Number(sale.netSale)),
             fmt(paymentTotal),
-            commission ? `${Number(commission.rate)}%` : '-',
+            commission
+              ? rateLabel(commission.rate, commission.finalAmount, sale.netSale)
+              : '-',
             commission
               ? fmt(Number(commission.finalAmount)) + (commission.isOverridden ? '*' : '')
               : '-',
