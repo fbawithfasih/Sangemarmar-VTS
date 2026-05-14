@@ -302,13 +302,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         for (var i = 0; i < cards.length; i += 2)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(child: cards[i]),
-                const SizedBox(width: 12),
-                Expanded(child: i + 1 < cards.length ? cards[i + 1] : const SizedBox()),
-              ],
+            // IntrinsicHeight bounds the row height so CrossAxisAlignment.stretch
+            // works — without it, a stretch Row in a ListView grows unbounded.
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: cards[i]),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: i + 1 < cards.length ? cards[i + 1] : const SizedBox(),
+                  ),
+                ],
+              ),
             ),
           ),
       ],
