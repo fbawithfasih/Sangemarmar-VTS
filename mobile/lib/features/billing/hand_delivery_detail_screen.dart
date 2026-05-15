@@ -6,6 +6,7 @@ import '../../core/services/api_service.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/widgets/app_bar.dart';
 import 'models/hand_delivery.dart';
+import 'tax_invoice_pdf.dart';
 import 'voucher_pdf.dart';
 
 class HandDeliveryDetailScreen extends StatefulWidget {
@@ -47,6 +48,16 @@ class _HandDeliveryDetailScreenState extends State<HandDeliveryDetailScreen> {
         _loading = false;
       });
     }
+  }
+
+  Future<void> _printTaxInvoice() async {
+    final o = _order;
+    if (o == null) return;
+    final pdf = await buildTaxInvoicePdf(o);
+    await Printing.layoutPdf(
+      onLayout: (_) async => pdf.save(),
+      name: 'tax_invoice_${o.invoiceNumber}.pdf',
+    );
   }
 
   Future<void> _printVoucher() async {
@@ -99,8 +110,13 @@ class _HandDeliveryDetailScreenState extends State<HandDeliveryDetailScreen> {
             ? []
             : [
                 IconButton(
-                  icon: const Icon(Icons.print),
-                  tooltip: 'Print voucher (front + back)',
+                  icon: const Icon(Icons.receipt_long),
+                  tooltip: 'Print Tax Invoice',
+                  onPressed: _printTaxInvoice,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.description),
+                  tooltip: 'Print Voucher (front + back)',
                   onPressed: _printVoucher,
                 ),
                 if (_order?.status == 'DRAFT')
@@ -285,13 +301,27 @@ class _HandDeliveryDetailScreenState extends State<HandDeliveryDetailScreen> {
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
-            icon: const Icon(Icons.print),
-            label: const Text('Print Voucher (Front + Back)'),
-            onPressed: _printVoucher,
+            icon: const Icon(Icons.receipt_long),
+            label: const Text('Print Tax Invoice'),
+            onPressed: _printTaxInvoice,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2E7D32),
+              backgroundColor: const Color(0xFF1B5E20),
               foregroundColor: Colors.white,
               minimumSize: const Size(0, 46),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            icon: const Icon(Icons.description),
+            label: const Text('Print Voucher (Front + Back)'),
+            onPressed: _printVoucher,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF1B5E20),
+              minimumSize: const Size(0, 44),
+              side: const BorderSide(color: Color(0xFF1B5E20)),
             ),
           ),
         ),
