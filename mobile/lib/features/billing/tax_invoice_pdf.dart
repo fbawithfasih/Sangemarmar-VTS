@@ -358,6 +358,11 @@ Future<pw.Document> buildTaxInvoicePdf(HandDeliveryOrder o) async {
                           '2. ALL DISPUTES ARE SUBJECT TO AGRA JURISDICTION ONLY.',
                           style: const pw.TextStyle(fontSize: 8.5),
                         ),
+                        pw.SizedBox(height: 2),
+                        pw.Text(
+                          '3. NO REFUND / NO EXCHANGE ONCE GOODS SOLD.',
+                          style: const pw.TextStyle(fontSize: 8.5),
+                        ),
                         pw.SizedBox(height: 22),
                         pw.Text('Signature of Buyer',
                             style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
