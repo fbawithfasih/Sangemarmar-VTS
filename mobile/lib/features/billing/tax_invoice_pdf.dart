@@ -401,10 +401,10 @@ pw.Widget _itemsTable(HandDeliveryOrder o, bool igst, NumberFormat fmt) {
   // with 22pt margins). IGST mode collapses CGST/SGST into one column.
   final cols = igst
       ? const <int, pw.TableColumnWidth>{
-          0: pw.FixedColumnWidth(24),  // S.No.
+          0: pw.FixedColumnWidth(32),  // S.No.
           1: pw.FlexColumnWidth(4),    // Particulars
-          2: pw.FixedColumnWidth(40),  // Size
-          3: pw.FixedColumnWidth(46),  // HSN
+          2: pw.FixedColumnWidth(38),  // Size
+          3: pw.FixedColumnWidth(40),  // HSN
           4: pw.FixedColumnWidth(30),  // Qty
           5: pw.FixedColumnWidth(56),  // Rate
           6: pw.FixedColumnWidth(64),  // Taxable Value
@@ -412,16 +412,16 @@ pw.Widget _itemsTable(HandDeliveryOrder o, bool igst, NumberFormat fmt) {
           8: pw.FixedColumnWidth(60),  // Total
         }
       : const <int, pw.TableColumnWidth>{
-          0: pw.FixedColumnWidth(24),
+          0: pw.FixedColumnWidth(32),
           1: pw.FlexColumnWidth(4),
-          2: pw.FixedColumnWidth(40),
-          3: pw.FixedColumnWidth(46),
+          2: pw.FixedColumnWidth(38),
+          3: pw.FixedColumnWidth(40),
           4: pw.FixedColumnWidth(30),
-          5: pw.FixedColumnWidth(56),
-          6: pw.FixedColumnWidth(56),
-          7: pw.FixedColumnWidth(50),  // CGST
-          8: pw.FixedColumnWidth(50),  // SGST
-          9: pw.FixedColumnWidth(56),  // Total
+          5: pw.FixedColumnWidth(54),
+          6: pw.FixedColumnWidth(54),
+          7: pw.FixedColumnWidth(48),  // CGST
+          8: pw.FixedColumnWidth(48),  // SGST
+          9: pw.FixedColumnWidth(54),  // Total
         };
 
   final headers = igst
