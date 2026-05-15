@@ -240,77 +240,75 @@ Future<pw.Document> buildTaxInvoicePdf(HandDeliveryOrder o) async {
             ),
 
             // ─── Buyer + Invoice meta (two columns) ──────────────────────
-            pw.Container(
-              decoration: pw.BoxDecoration(
-                border: pw.Border(
-                  left: pw.BorderSide(width: 0.6),
-                  right: pw.BorderSide(width: 0.6),
-                  bottom: pw.BorderSide(width: 0.6),
-                ),
+            // Use a Table here: pw.Row(stretch) with vertical-divider
+            // Containers silently fails to lay out when its parent has no
+            // bounded height, which collapses the rest of the page.
+            pw.Table(
+              border: pw.TableBorder(
+                left: pw.BorderSide(width: 0.6),
+                right: pw.BorderSide(width: 0.6),
+                bottom: pw.BorderSide(width: 0.6),
+                verticalInside: pw.BorderSide(width: 0.6),
               ),
-              child: pw.Row(
-                crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-                children: [
-                  pw.Expanded(
-                    flex: 6,
-                    child: pw.Padding(
-                      padding: const pw.EdgeInsets.fromLTRB(8, 6, 8, 6),
-                      child: pw.Column(
-                        crossAxisAlignment: pw.CrossAxisAlignment.start,
-                        children: [
-                          _labelValue('Name of Buyer', o.buyerName, bold: true),
-                          _labelValue('Passport No./DOB', o.dobPassport ?? ''),
-                          _labelValue('Country', (o.buyerCountry ?? '').toUpperCase()),
-                          _labelValue('Email', o.buyerEmail ?? ''),
-                          _labelValue('Contact', cell),
-                          _labelValue('State Code', ''),
-                          _labelValue('GSTIN', o.gstin ?? ''),
-                        ],
-                      ),
-                    ),
-                  ),
-                  pw.Container(width: 0.6, color: PdfColors.black),
-                  pw.Expanded(
-                    flex: 5,
+              columnWidths: const {
+                0: pw.FlexColumnWidth(6),
+                1: pw.FlexColumnWidth(5),
+              },
+              children: [
+                pw.TableRow(children: [
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.fromLTRB(8, 6, 8, 6),
                     child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        // "State : ... State Code : 09" header band
-                        pw.Container(
-                          padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                          decoration: const pw.BoxDecoration(
-                            border: pw.Border(bottom: pw.BorderSide(width: 0.6)),
-                          ),
-                          child: pw.Row(
-                            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                            children: [
-                              pw.Text('State : ${_Co.stateName}',
-                                  style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
-                              pw.Text('State Code : ${_Co.stateCode}',
-                                  style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
-                            ],
-                          ),
-                        ),
-                        pw.Padding(
-                          padding: const pw.EdgeInsets.fromLTRB(6, 4, 6, 4),
-                          child: pw.Column(
-                            crossAxisAlignment: pw.CrossAxisAlignment.start,
-                            children: [
-                              _labelValue('Reverse Charge', 'N.A.'),
-                              _labelValue('Invoice No.', o.invoiceNumber, bold: true),
-                              _labelValue('Invoice Date', dtFmt.format(o.orderDate.toLocal())),
-                              _labelValue('Transportation Mode', ''),
-                              _labelValue('Vehicle No.', ''),
-                              _labelValue('Date of Supply', dtFmt.format(o.orderDate.toLocal())),
-                              _labelValue('Place of Supply', ''),
-                            ],
-                          ),
-                        ),
+                        _labelValue('Name of Buyer', o.buyerName, bold: true),
+                        _labelValue('Passport No./DOB', o.dobPassport ?? ''),
+                        _labelValue('Country', (o.buyerCountry ?? '').toUpperCase()),
+                        _labelValue('Email', o.buyerEmail ?? ''),
+                        _labelValue('Contact', cell),
+                        _labelValue('State Code', ''),
+                        _labelValue('GSTIN', o.gstin ?? ''),
                       ],
                     ),
                   ),
-                ],
-              ),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Container(
+                        width: double.infinity,
+                        padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        decoration: const pw.BoxDecoration(
+                          border: pw.Border(bottom: pw.BorderSide(width: 0.6)),
+                        ),
+                        child: pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text('State : ${_Co.stateName}',
+                                style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                            pw.Text('State Code : ${_Co.stateCode}',
+                                style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.fromLTRB(6, 4, 6, 4),
+                        child: pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            _labelValue('Reverse Charge', 'N.A.'),
+                            _labelValue('Invoice No.', o.invoiceNumber, bold: true),
+                            _labelValue('Invoice Date', dtFmt.format(o.orderDate.toLocal())),
+                            _labelValue('Transportation Mode', ''),
+                            _labelValue('Vehicle No.', ''),
+                            _labelValue('Date of Supply', dtFmt.format(o.orderDate.toLocal())),
+                            _labelValue('Place of Supply', ''),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ]),
+              ],
             ),
 
             // ─── Items table ─────────────────────────────────────────────
@@ -329,19 +327,21 @@ Future<pw.Document> buildTaxInvoicePdf(HandDeliveryOrder o) async {
             ),
 
             // ─── Signatures ──────────────────────────────────────────────
-            pw.Container(
-              decoration: pw.BoxDecoration(
-                border: pw.Border(
-                  left: pw.BorderSide(width: 0.6),
-                  right: pw.BorderSide(width: 0.6),
-                  bottom: pw.BorderSide(width: 0.6),
-                ),
+            pw.Table(
+              border: pw.TableBorder(
+                left: pw.BorderSide(width: 0.6),
+                right: pw.BorderSide(width: 0.6),
+                bottom: pw.BorderSide(width: 0.6),
+                verticalInside: pw.BorderSide(width: 0.6),
               ),
-              padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              child: pw.Row(
-                children: [
-                  pw.Expanded(
-                    flex: 6,
+              columnWidths: const {
+                0: pw.FlexColumnWidth(6),
+                1: pw.FlexColumnWidth(5),
+              },
+              children: [
+                pw.TableRow(children: [
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
@@ -364,32 +364,28 @@ Future<pw.Document> buildTaxInvoicePdf(HandDeliveryOrder o) async {
                       ],
                     ),
                   ),
-                  pw.Container(width: 0.6, color: PdfColors.black, height: 90),
-                  pw.Expanded(
-                    flex: 5,
-                    child: pw.Padding(
-                      padding: const pw.EdgeInsets.only(left: 10),
-                      child: pw.Column(
-                        crossAxisAlignment: pw.CrossAxisAlignment.start,
-                        children: [
-                          pw.Text(
-                            'Certified that the particulars given above are true and correct.',
-                            style: const pw.TextStyle(fontSize: 8),
-                          ),
-                          pw.SizedBox(height: 6),
-                          pw.Text(
-                            'For, ${_Co.legalName}',
-                            style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
-                          ),
-                          pw.SizedBox(height: 36),
-                          pw.Text('Authorised Signatory',
-                              style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
-                        ],
-                      ),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.fromLTRB(10, 6, 8, 6),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'Certified that the particulars given above are true and correct.',
+                          style: const pw.TextStyle(fontSize: 8),
+                        ),
+                        pw.SizedBox(height: 6),
+                        pw.Text(
+                          'For, ${_Co.legalName}',
+                          style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
+                        ),
+                        pw.SizedBox(height: 36),
+                        pw.Text('Authorised Signatory',
+                            style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                      ],
                     ),
                   ),
-                ],
-              ),
+                ]),
+              ],
             ),
           ],
         );
@@ -563,79 +559,74 @@ pw.Widget _footerBlock({
 
   final totalTax = (cgst ?? 0) + (sgst ?? 0) + (igst ?? 0);
 
-  return pw.Container(
-    decoration: pw.BoxDecoration(
-      border: pw.Border(
-        left: pw.BorderSide(width: 0.6),
-        right: pw.BorderSide(width: 0.6),
-        bottom: pw.BorderSide(width: 0.6),
-      ),
+  return pw.Table(
+    border: pw.TableBorder(
+      left: pw.BorderSide(width: 0.6),
+      right: pw.BorderSide(width: 0.6),
+      bottom: pw.BorderSide(width: 0.6),
+      verticalInside: pw.BorderSide(width: 0.6),
     ),
-    child: pw.Row(
-      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-      children: [
-        pw.Expanded(
-          flex: 6,
-          child: pw.Padding(
-            padding: const pw.EdgeInsets.fromLTRB(8, 6, 8, 6),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Center(
-                  child: pw.Text('Invoice Total in words',
-                      style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
-                ),
-                pw.SizedBox(height: 2),
-                pw.Center(
-                  child: pw.Text(totalWords,
-                      style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold),
-                      textAlign: pw.TextAlign.center),
-                ),
-                pw.SizedBox(height: 6),
-                pw.Center(
-                  child: pw.Text('Bank Details',
-                      style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
-                ),
-                pw.SizedBox(height: 2),
-                _kvSmall('Bank Name', _Co.bankName),
-                _kvSmall('Branch Name', _Co.bankBranch),
-                _kvSmall('Bank Account Number', _Co.bankAccount),
-                _kvSmall('Bank Branch IFSC', _Co.bankIfsc),
-              ],
-            ),
-          ),
-        ),
-        pw.Container(width: 0.6, color: PdfColors.black),
-        pw.Expanded(
-          flex: 5,
+    columnWidths: const {
+      0: pw.FlexColumnWidth(6),
+      1: pw.FlexColumnWidth(5),
+    },
+    children: [
+      pw.TableRow(children: [
+        pw.Padding(
+          padding: const pw.EdgeInsets.fromLTRB(8, 6, 8, 6),
           child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              kvRow('Taxable Amount', 'Rs ${_money(taxable)}'),
-              kvRow('Add : CGST', cgst == null ? '-' : 'Rs ${_money(cgst)}'),
-              kvRow('Add : SGST', sgst == null ? '-' : 'Rs ${_money(sgst)}'),
-              kvRow('Add : IGST', igst == null ? '-' : 'Rs ${_money(igst)}'),
-              kvRow('Total Tax', 'Rs ${_money(totalTax)}', bold: true),
-              kvRow('Total Amount After Tax', 'Rs ${_money(total)}', bold: true),
-              pw.Padding(
-                padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                child: pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.end,
-                  children: [
-                    pw.Text('(E & O.E.)',
-                        style: pw.TextStyle(
-                          fontSize: 8,
-                          fontStyle: pw.FontStyle.italic,
-                        )),
-                  ],
-                ),
+              pw.Center(
+                child: pw.Text('Invoice Total in words',
+                    style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
               ),
-              kvRow('GST Payable on Reverse Charge', 'N.A.'),
+              pw.SizedBox(height: 2),
+              pw.Center(
+                child: pw.Text(totalWords,
+                    style: pw.TextStyle(fontSize: 9.5, fontWeight: pw.FontWeight.bold),
+                    textAlign: pw.TextAlign.center),
+              ),
+              pw.SizedBox(height: 6),
+              pw.Center(
+                child: pw.Text('Bank Details',
+                    style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+              ),
+              pw.SizedBox(height: 2),
+              _kvSmall('Bank Name', _Co.bankName),
+              _kvSmall('Branch Name', _Co.bankBranch),
+              _kvSmall('Bank Account Number', _Co.bankAccount),
+              _kvSmall('Bank Branch IFSC', _Co.bankIfsc),
             ],
           ),
         ),
-      ],
-    ),
+        pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+          children: [
+            kvRow('Taxable Amount', 'Rs ${_money(taxable)}'),
+            kvRow('Add : CGST', cgst == null ? '-' : 'Rs ${_money(cgst)}'),
+            kvRow('Add : SGST', sgst == null ? '-' : 'Rs ${_money(sgst)}'),
+            kvRow('Add : IGST', igst == null ? '-' : 'Rs ${_money(igst)}'),
+            kvRow('Total Tax', 'Rs ${_money(totalTax)}', bold: true),
+            kvRow('Total Amount After Tax', 'Rs ${_money(total)}', bold: true),
+            pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.end,
+                children: [
+                  pw.Text('(E & O.E.)',
+                      style: pw.TextStyle(
+                        fontSize: 8,
+                        fontStyle: pw.FontStyle.italic,
+                      )),
+                ],
+              ),
+            ),
+            kvRow('GST Payable on Reverse Charge', 'N.A.'),
+          ],
+        ),
+      ]),
+    ],
   );
 }
 
