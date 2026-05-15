@@ -203,6 +203,9 @@ export class StatementsService {
       { header: 'Commission Rate', key: 'commRate', width: 16 },
       { header: 'Commission Amt', key: 'commAmt', width: 16 },
       { header: 'Commission Override', key: 'override', width: 18 },
+      { header: 'Payment Status', key: 'commStatus', width: 18 },
+      { header: 'Paid Amount', key: 'commPaid', width: 14 },
+      { header: 'Paid Date', key: 'commPaidAt', width: 14 },
     ];
     details.getRow(1).font = { bold: true };
 
@@ -223,9 +226,21 @@ export class StatementsService {
           commRate: '—',
           commAmt: 0,
           override: 'No',
+          commStatus: '—',
+          commPaid: '',
+          commPaidAt: '',
         });
       }
       for (const { sale, paymentTotal, commission } of sales) {
+        const paid = commission ? Number(commission.paidAmount ?? 0) : 0;
+        const finalAmt = commission ? Number(commission.finalAmount) : 0;
+        const status = !commission
+          ? '—'
+          : paid <= 0
+            ? 'Pending'
+            : paid + 0.005 < finalAmt
+              ? 'Partial'
+              : 'Paid';
         details.addRow({
           entryDate: new Date(entry.entryDate).toLocaleDateString(),
           vehicleNumber: entry.vehicleNumber,
@@ -241,8 +256,11 @@ export class StatementsService {
           commRate: commission
             ? rateLabel(commission.rate, commission.finalAmount, sale.netSale)
             : '—',
-          commAmt: commission ? +Number(commission.finalAmount).toFixed(2) : 0,
+          commAmt: commission ? +finalAmt.toFixed(2) : 0,
           override: commission?.isOverridden ? 'Yes' : 'No',
+          commStatus: status,
+          commPaid: commission && paid > 0 ? +paid.toFixed(2) : '',
+          commPaidAt: commission?.paidAt ? new Date(commission.paidAt).toLocaleDateString() : '',
         });
       }
     }
@@ -381,15 +399,16 @@ export class StatementsService {
 
       // Transaction table
       const cols: Col[] = [
-        { header: 'Entry Date', width: 56 },
-        { header: 'Vehicle No.', width: 70 },
-        { header: 'Sale Date', width: 56 },
-        { header: 'Order Type', width: 78 },
-        { header: 'Gross', width: 58, align: 'right' },
-        { header: 'Net', width: 58, align: 'right' },
-        { header: 'Payments', width: 54, align: 'right' },
-        { header: 'Rate', width: 33, align: 'right' },
-        { header: 'Comm.', width: 52, align: 'right' },
+        { header: 'Entry Date', width: 54 },
+        { header: 'Vehicle No.', width: 64 },
+        { header: 'Sale Date', width: 54 },
+        { header: 'Order Type', width: 58 },
+        { header: 'Gross', width: 56, align: 'right' },
+        { header: 'Net', width: 56, align: 'right' },
+        { header: 'Pay', width: 50, align: 'right' },
+        { header: 'Rate', width: 30, align: 'right' },
+        { header: 'Comm.', width: 50, align: 'right' },
+        { header: 'Status', width: 43, align: 'center' },
       ];
       drawTableHeader(cols);
 
@@ -399,11 +418,20 @@ export class StatementsService {
           drawRow(cols, [
             dt(entry.entryDate),
             entry.vehicleNumber,
-            '-', 'No sale', '-', '-', '-', '-', '-',
+            '-', 'No sale', '-', '-', '-', '-', '-', '-',
           ], idx++);
           continue;
         }
         for (const { sale, paymentTotal, commission } of sales) {
+          const paid = commission ? Number(commission.paidAmount ?? 0) : 0;
+          const finalAmt = commission ? Number(commission.finalAmount) : 0;
+          const status = !commission
+            ? '-'
+            : paid <= 0
+              ? 'Pending'
+              : paid + 0.005 < finalAmt
+                ? 'Partial'
+                : 'Paid';
           drawRow(cols, [
             dt(entry.entryDate),
             entry.vehicleNumber,
@@ -416,8 +444,9 @@ export class StatementsService {
               ? rateLabel(commission.rate, commission.finalAmount, sale.netSale)
               : '-',
             commission
-              ? fmt(Number(commission.finalAmount)) + (commission.isOverridden ? '*' : '')
+              ? fmt(finalAmt) + (commission.isOverridden ? '*' : '')
               : '-',
+            status,
           ], idx++);
         }
       }
@@ -429,6 +458,7 @@ export class StatementsService {
         fmt(s.totalPayments),
         '',
         fmt(s.totalCommission),
+        '',
       ], 0, true);
 
       doc.moveTo(LEFT, doc.y).lineTo(RIGHT, doc.y)

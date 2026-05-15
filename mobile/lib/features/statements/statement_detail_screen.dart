@@ -335,6 +335,8 @@ class _StatementDetailScreenState extends State<StatementDetailScreen> {
                       fontSize: 13,
                     ),
                   ),
+                  const SizedBox(width: 6),
+                  _paymentStatusChip(commission),
                   if (commission['isOverridden'] == true) ...[
                     const SizedBox(width: 6),
                     Container(
@@ -404,6 +406,43 @@ class _StatementDetailScreenState extends State<StatementDetailScreen> {
       );
 
   Widget _darkDivider() => Container(width: 1, height: 28, color: Colors.white24);
+
+  // Paid / Partial / Pending pill based on commission.paidAmount vs finalAmount.
+  Widget _paymentStatusChip(Map<String, dynamic> commission) {
+    final paid = double.tryParse(commission['paidAmount']?.toString() ?? '') ?? 0;
+    final finalAmt = double.tryParse(commission['finalAmount']?.toString() ?? '') ?? 0;
+
+    late final String label;
+    late final Color bg;
+    late final Color border;
+    late final Color fg;
+    if (paid <= 0) {
+      label = 'Pending';
+      bg = Colors.red.shade50;
+      border = Colors.red.shade200;
+      fg = Colors.red.shade700;
+    } else if (paid + 0.005 < finalAmt) {
+      label = 'Partial';
+      bg = Colors.amber.shade50;
+      border = Colors.amber.shade300;
+      fg = Colors.amber.shade800;
+    } else {
+      label = 'Paid';
+      bg = Colors.green.shade50;
+      border = Colors.green.shade300;
+      fg = Colors.green.shade800;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: border),
+      ),
+      child: Text(label, style: TextStyle(fontSize: 10, color: fg, fontWeight: FontWeight.w600)),
+    );
+  }
 
   Widget _miniStat(String label, String value) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
