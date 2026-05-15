@@ -277,10 +277,10 @@ class _HandDeliveryDetailScreenState extends State<HandDeliveryDetailScreen> {
               const Divider(),
               _summaryLine('Taxable Value', o.totalTaxable),
               if (igst)
-                _summaryLine('IGST (5%)', o.totalGst)
+                _summaryLine('IGST', o.totalGst)
               else ...[
-                _summaryLine('CGST (2.5%)', o.totalGst / 2),
-                _summaryLine('SGST (2.5%)', o.totalGst / 2),
+                _summaryLine('CGST', o.totalGst / 2),
+                _summaryLine('SGST', o.totalGst / 2),
               ],
               const SizedBox(height: 4),
               Row(

@@ -7,12 +7,14 @@ import '../../core/utils/uppercase_formatter.dart';
 import '../../core/widgets/app_bar.dart';
 import 'models/hand_delivery.dart';
 
-// GST is fixed at 5% for now (5% IGST for inter-state, 2.5% CGST + 2.5% SGST
-// for local). Per-product rate from the catalog is stored but not used yet.
-const double _kFixedGstRate = 5.0;
+// GST rate is per-product (sourced from the catalog when a product is picked).
+// Default 5% for manually-added rows; gets overridden when the user picks a
+// product whose stored rate differs (e.g. Deities are 0%).
+const double _kDefaultGstRate = 5.0;
 
 class _ItemRow {
   String? productId; // null when nothing picked yet
+  double gstRate = _kDefaultGstRate;
   final TextEditingController particulars = TextEditingController();
   final TextEditingController hsnCode = TextEditingController();
   final TextEditingController size = TextEditingController();
@@ -21,8 +23,9 @@ class _ItemRow {
 
   double get amountValue => double.tryParse(amount.text) ?? 0;
 
-  /// Reverse-calc: taxable + GST == amountValue
-  double get taxable => amountValue / (1 + _kFixedGstRate / 100);
+  /// Reverse-calc: taxable + GST == amountValue. Uses this row's gstRate so
+  /// 0% products (Deities) produce taxable == amount and gstAmount == 0.
+  double get taxable => amountValue / (1 + gstRate / 100);
   double get gstAmount => amountValue - taxable;
 
   void dispose() {
@@ -39,7 +42,7 @@ class _ItemRow {
         if (size.text.trim().isNotEmpty) 'size': size.text.trim(),
         'quantity': int.parse(quantity.text),
         'amountInr': amountValue,
-        'gstRate': _kFixedGstRate,
+        'gstRate': gstRate,
       };
 }
 
@@ -122,6 +125,9 @@ class _HandDeliveryFormScreenState extends State<HandDeliveryFormScreen> {
         row.size.text = ((item['size'] as String?) ?? '').toUpperCase();
         row.quantity.text = item['quantity'].toString();
         row.amount.text = double.parse(item['amountInr'].toString()).toStringAsFixed(2);
+        if (item['gstRate'] != null) {
+          row.gstRate = double.parse(item['gstRate'].toString());
+        }
         _items.add(row);
       }
     } catch (_) {
@@ -352,10 +358,10 @@ class _HandDeliveryFormScreenState extends State<HandDeliveryFormScreen> {
         children: [
           _totalRow('Taxable Value', _totalTaxable),
           if (igst)
-            _totalRow('IGST (5%)', _totalGst)
+            _totalRow('IGST', _totalGst)
           else ...[
-            _totalRow('CGST (2.5%)', _totalGst / 2),
-            _totalRow('SGST (2.5%)', _totalGst / 2),
+            _totalRow('CGST', _totalGst / 2),
+            _totalRow('SGST', _totalGst / 2),
           ],
           const Divider(height: 16),
           Row(
@@ -503,6 +509,7 @@ class _ItemCard extends StatelessWidget {
 
   void _applyProduct(BillingProduct p) {
     row.productId = p.id;
+    row.gstRate = p.gstRate;
     row.particulars.text = p.description.toUpperCase();
     row.hsnCode.text = (p.hsnCode ?? '').toUpperCase();
     onChanged();
@@ -637,7 +644,10 @@ class _ItemCard extends StatelessWidget {
                     child: _kv('Taxable', '₹ ${row.taxable.toStringAsFixed(2)}'),
                   ),
                   Expanded(
-                    child: _kv('GST ($_kFixedGstRate%)', '₹ ${row.gstAmount.toStringAsFixed(2)}'),
+                    child: _kv(
+                      'GST (${_fmtRate(row.gstRate)}%)',
+                      '₹ ${row.gstAmount.toStringAsFixed(2)}',
+                    ),
                   ),
                 ],
               ),
@@ -647,6 +657,10 @@ class _ItemCard extends StatelessWidget {
       ),
     );
   }
+
+  /// Trim trailing zeros: 5.0 → "5", 2.5 → "2.5", 0 → "0".
+  static String _fmtRate(double r) =>
+      r == r.roundToDouble() ? r.toStringAsFixed(0) : r.toString();
 
   Widget _kv(String k, String v) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,

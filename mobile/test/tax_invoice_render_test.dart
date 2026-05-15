@@ -27,7 +27,7 @@ void main() {
       items: [
         HandDeliveryItem(
           id: 'it-1',
-          particulars: 'WHITE MARBLE COASTERS SET',
+          particulars: 'MARBLE INLAY COASTER SET',
           hsnCode: '681599',
           size: '4x4',
           quantity: 1,
@@ -36,6 +36,18 @@ void main() {
           gstRate: 5,
           taxableValue: 19047.62,
           gstAmount: 952.38,
+        ),
+        HandDeliveryItem(
+          id: 'it-2',
+          particulars: 'DEITIES OF MARBLE BUDDHA',
+          hsnCode: '680299',
+          size: '6 INCHES',
+          quantity: 2,
+          priceInr: 5000,
+          amountInr: 10000,
+          gstRate: 0,
+          taxableValue: 10000,
+          gstAmount: 0,
         ),
       ],
       createdAt: DateTime(2026, 5, 15),
