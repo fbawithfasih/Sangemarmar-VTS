@@ -311,7 +311,15 @@ export class HandDeliveryService {
     let updated = 0;
     let skipped = 0;
 
+    // UUIDs only — anything else would make Postgres throw on the WHERE clause.
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
     for (const [orderId, changes] of byOrder) {
+      if (!uuidRe.test(orderId)) {
+        skipped += changes.length;
+        errors.push(`Invalid Row Key prefix "${orderId}" — ${changes.length} row(s) skipped`);
+        continue;
+      }
       const order = await this.orderRepo.findOne({
         where: { id: orderId },
         relations: ['items'],
