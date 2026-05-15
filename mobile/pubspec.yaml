@@ -39,6 +39,9 @@ dependencies:
   uuid: ^4.4.0
   fl_chart: ^1.2.0
 
+  # File pick (for Hand Delivery bulk upload)
+  file_picker: ^8.1.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

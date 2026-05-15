@@ -1,7 +1,9 @@
 import {
   Controller, Get, Post, Patch, Delete,
-  Body, Param, Query, UseGuards,
+  Body, Param, Query, Res, UseGuards, UseInterceptors, UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
 import { HandDeliveryService } from './hand-delivery.service';
 import {
   CreateHandDeliveryDto, UpdateHandDeliveryDto, HandDeliveryFilterDto,
@@ -22,6 +24,29 @@ export class HandDeliveryController {
   @Get()
   findAll(@Query() query: HandDeliveryFilterDto) {
     return this.service.findAll(query);
+  }
+
+  // ── Report (Excel) — placed before :id so the param route doesn't shadow it
+  @Get('report')
+  async exportReport(
+    @Query() query: HandDeliveryFilterDto,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.service.exportReport(query);
+    res.set({
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="hand_delivery_report_${Date.now()}.xlsx"`,
+    });
+    res.send(buffer);
+  }
+
+  @Post('bulk-upload')
+  @UseInterceptors(FileInterceptor('file'))
+  async bulkUpload(
+    @UploadedFile() file: { buffer: Buffer; originalname?: string },
+    @CurrentUser() user: User,
+  ) {
+    return this.service.bulkUpdate(file, user);
   }
 
   @Post()
