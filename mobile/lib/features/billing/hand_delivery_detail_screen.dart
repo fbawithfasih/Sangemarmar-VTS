@@ -31,7 +31,10 @@ class _HandDeliveryDetailScreenState extends State<HandDeliveryDetailScreen> {
   }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final res = await _api.get('${ApiConstants.handDelivery}/${widget.orderId}');
       setState(() {
@@ -39,31 +42,37 @@ class _HandDeliveryDetailScreenState extends State<HandDeliveryDetailScreen> {
         _loading = false;
       });
     } catch (_) {
-      setState(() { _error = 'Failed to load hand delivery'; _loading = false; });
+      setState(() {
+        _error = 'Failed to load hand delivery';
+        _loading = false;
+      });
     }
   }
 
   Future<void> _printVoucher() async {
     final o = _order;
     if (o == null) return;
+    // The current voucher template still uses the legacy buyer fields. We pass
+    // the slim-set fields where they map and leave the rest blank — PDF
+    // redesign is scheduled as a follow-up.
     final data = VoucherData(
       title: 'HAND DELIVERY VOUCHER',
       orderNo: o.invoiceNumber,
       orderDate: o.orderDate,
       buyerName: o.buyerName,
-      buyerAddress: o.buyerAddress,
-      buyerCity: o.buyerCity,
-      buyerState: o.buyerState,
-      buyerZip: o.buyerZip,
-      buyerCountry: o.buyerCountry,
+      buyerAddress: '',
+      buyerCity: '',
+      buyerState: o.buyerState ?? '',
+      buyerZip: '',
+      buyerCountry: o.buyerCountry ?? '',
       buyerCellAreaCode: o.buyerCellAreaCode,
       buyerCellNo: o.buyerCellNo,
-      buyerEmail: o.buyerEmail,
-      buyerPassportNo: o.buyerPassportNo,
-      buyerDOB: o.buyerDOB,
-      buyerNationality: o.buyerNationality,
-      buyerSeaPort: o.buyerSeaPort,
-      buyerWhatsApp: o.buyerWhatsApp,
+      buyerEmail: o.buyerEmail ?? '',
+      buyerPassportNo: o.dobPassport ?? '',
+      buyerDOB: null,
+      buyerNationality: '',
+      buyerSeaPort: '',
+      buyerWhatsApp: '',
       items: o.items
           .map((i) => VoucherItem(
                 quantity: i.quantity,
@@ -121,6 +130,8 @@ class _HandDeliveryDetailScreenState extends State<HandDeliveryDetailScreen> {
 
   Widget _buildContent() {
     final o = _order!;
+    final igst = o.invoiceType == 'INTER_STATE';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -152,6 +163,28 @@ class _HandDeliveryDetailScreenState extends State<HandDeliveryDetailScreen> {
             ),
           ],
         ),
+        const SizedBox(height: 12),
+
+        // ── Invoice type badge ───────────────────────────────────────────
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1565C0).withOpacity(0.08),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: const Color(0xFF1565C0).withOpacity(0.3)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(igst ? Icons.public : Icons.location_city, size: 14, color: const Color(0xFF1565C0)),
+              const SizedBox(width: 6),
+              Text(
+                igst ? 'Inter State Invoice  •  IGST 5%' : 'Local Invoice  •  CGST 2.5% + SGST 2.5%',
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1565C0)),
+              ),
+            ],
+          ),
+        ),
         const SizedBox(height: 16),
 
         _card(
@@ -161,17 +194,13 @@ class _HandDeliveryDetailScreenState extends State<HandDeliveryDetailScreen> {
           child: Column(
             children: [
               _infoRow('Name', o.buyerName),
-              _infoRow('Address', o.buyerAddress),
-              _infoRow('City / State', '${o.buyerCity}, ${o.buyerState}'),
-              _infoRow('Zip / Country', '${o.buyerZip}, ${o.buyerCountry}'),
-              _infoRow('Cell No.', '${o.buyerCellAreaCode ?? ''} ${o.buyerCellNo ?? ''}'.trim().isEmpty ? '—' : '${o.buyerCellAreaCode ?? ''} ${o.buyerCellNo ?? ''}'.trim()),
-              _infoRow('Passport No.', o.buyerPassportNo),
-              _infoRow('Nationality', o.buyerNationality),
-              if (o.buyerDOB != null) _infoRow('Date of Birth', _dtFmt.format(o.buyerDOB!)),
-              if (o.buyerSeaPort.isNotEmpty) _infoRow('Sea Port', o.buyerSeaPort),
-              _infoRow('WhatsApp', o.buyerWhatsApp),
-              _infoRow('E-mail', o.buyerEmail),
-              if (o.notes != null && o.notes!.isNotEmpty) _infoRow('Notes', o.notes!),
+              if ((o.dobPassport ?? '').isNotEmpty) _infoRow('DOB / Passport', o.dobPassport!),
+              if ((o.buyerState ?? '').isNotEmpty) _infoRow('State', o.buyerState!),
+              if ((o.buyerCountry ?? '').isNotEmpty) _infoRow('Country', o.buyerCountry!),
+              if ((o.gstin ?? '').isNotEmpty) _infoRow('GSTIN', o.gstin!),
+              if ((o.buyerEmail ?? '').isNotEmpty) _infoRow('E-mail', o.buyerEmail!),
+              if (((o.buyerCellAreaCode ?? '') + (o.buyerCellNo ?? '')).isNotEmpty)
+                _infoRow('Cell No.', '${o.buyerCellAreaCode ?? ''} ${o.buyerCellNo ?? ''}'.trim()),
             ],
           ),
         ),
@@ -190,9 +219,11 @@ class _HandDeliveryDetailScreenState extends State<HandDeliveryDetailScreen> {
                     Expanded(flex: 4, child: Text('Description', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey))),
                     SizedBox(width: 8),
                     Text('Qty', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey)),
-                    SizedBox(width: 16),
-                    SizedBox(width: 70, child: Text('Price', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey), textAlign: TextAlign.right)),
-                    SizedBox(width: 16),
+                    SizedBox(width: 12),
+                    SizedBox(width: 70, child: Text('Taxable', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey), textAlign: TextAlign.right)),
+                    SizedBox(width: 12),
+                    SizedBox(width: 60, child: Text('GST', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey), textAlign: TextAlign.right)),
+                    SizedBox(width: 12),
                     SizedBox(width: 70, child: Text('Amount', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.grey), textAlign: TextAlign.right)),
                   ],
                 ),
@@ -202,33 +233,46 @@ class _HandDeliveryDetailScreenState extends State<HandDeliveryDetailScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Row(
                       children: [
-                        Expanded(flex: 4, child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(item.particulars, style: const TextStyle(fontSize: 13)),
-                            if ((item.hsnCode ?? '').isNotEmpty || (item.size ?? '').isNotEmpty)
-                              Text(
-                                'HSN: ${item.hsnCode ?? '—'}  •  Size: ${item.size ?? '—'}',
-                                style: const TextStyle(fontSize: 11, color: Colors.grey),
-                              ),
-                          ],
-                        )),
+                        Expanded(
+                          flex: 4,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(item.particulars, style: const TextStyle(fontSize: 13)),
+                              if ((item.hsnCode ?? '').isNotEmpty || (item.size ?? '').isNotEmpty)
+                                Text(
+                                  'HSN: ${item.hsnCode ?? '—'}  •  Size: ${item.size ?? '—'}',
+                                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                ),
+                            ],
+                          ),
+                        ),
                         const SizedBox(width: 8),
                         Text('${item.quantity}', style: const TextStyle(fontSize: 13)),
-                        const SizedBox(width: 16),
-                        SizedBox(width: 70, child: Text('₹ ${item.priceInr.toStringAsFixed(2)}', style: const TextStyle(fontSize: 13), textAlign: TextAlign.right)),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 12),
+                        SizedBox(width: 70, child: Text('₹ ${item.taxableValue.toStringAsFixed(2)}', style: const TextStyle(fontSize: 13), textAlign: TextAlign.right)),
+                        const SizedBox(width: 12),
+                        SizedBox(width: 60, child: Text('₹ ${item.gstAmount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 13), textAlign: TextAlign.right)),
+                        const SizedBox(width: 12),
                         SizedBox(width: 70, child: Text('₹ ${item.amountInr.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13), textAlign: TextAlign.right)),
                       ],
                     ),
                   )),
               const Divider(),
+              _summaryLine('Taxable Value', o.totalTaxable),
+              if (igst)
+                _summaryLine('IGST (5%)', o.totalGst)
+              else ...[
+                _summaryLine('CGST (2.5%)', o.totalGst / 2),
+                _summaryLine('SGST (2.5%)', o.totalGst / 2),
+              ],
+              const SizedBox(height: 4),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   const Text('TOTAL  ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                   Text(
-                    _fmtInr.format(o.totalInr),
+                    _fmtInr.format(o.totalAmount),
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF2E7D32)),
                   ),
                 ],
@@ -255,6 +299,20 @@ class _HandDeliveryDetailScreenState extends State<HandDeliveryDetailScreen> {
       ],
     );
   }
+
+  Widget _summaryLine(String label, double value) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Text('$label  ', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            SizedBox(
+              width: 90,
+              child: Text('₹ ${value.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12), textAlign: TextAlign.right),
+            ),
+          ],
+        ),
+      );
 
   Widget _card({required String title, required IconData icon, required Color color, required Widget child}) {
     return Card(

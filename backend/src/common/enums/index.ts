@@ -41,6 +41,14 @@ export enum BillingOrderStatus {
   CONFIRMED = 'CONFIRMED',
 }
 
+// Hand Delivery invoice type — determines whether GST is charged as IGST
+// (inter-state) or split into CGST + SGST (intra-state). The total GST rate
+// is fixed at 5% per current business policy.
+export enum InvoiceType {
+  INTER_STATE = 'INTER_STATE',
+  LOCAL = 'LOCAL',
+}
+
 export enum ShipmentCarrier {
   FEDEX = 'FEDEX',
   DHL = 'DHL',

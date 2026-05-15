@@ -133,7 +133,12 @@ class _Tile extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 3),
-                    Text('${order.buyerName}  •  ${order.buyerCountry}', style: const TextStyle(fontSize: 13)),
+                    Text(
+                      [order.buyerName, order.buyerCountry ?? '']
+                          .where((s) => s.isNotEmpty)
+                          .join('  •  '),
+                      style: const TextStyle(fontSize: 13),
+                    ),
                     Text(dtFmt.format(order.orderDate.toLocal()), style: const TextStyle(fontSize: 12, color: Colors.grey)),
                   ],
                 ),

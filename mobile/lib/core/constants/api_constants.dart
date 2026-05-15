@@ -41,6 +41,9 @@ class ApiConstants {
   // Hand Delivery
   static const String handDelivery = '/hand-delivery';
 
+  // Billing Products catalog (used by Hand Delivery item dropdown)
+  static const String billingProducts = '/billing-products';
+
   // Shipping
   static const String shipping = '/shipping';
   static const String shippingRates = '/shipping/rates';

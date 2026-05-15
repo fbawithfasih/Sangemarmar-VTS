@@ -17,6 +17,19 @@ function istDayEnd(dateStr: string): Date {
   return new Date(`${dateStr}T23:59:59.999+05:30`);
 }
 
+// Reverse-calculate taxable value and GST amount from an inclusive line total.
+// Given amount (inclusive) and rate %, returns { taxable, gst, unitPrice }
+// where taxable + gst == amount (to 2dp) and unitPrice = taxable / quantity.
+function reverseCalc(amount: number, rate: number, quantity: number) {
+  const a = Number(amount) || 0;
+  const r = Number(rate) || 0;
+  const taxable = +(a / (1 + r / 100)).toFixed(2);
+  const gst = +(a - taxable).toFixed(2);
+  const qty = quantity > 0 ? quantity : 1;
+  const unitPrice = +(taxable / qty).toFixed(2);
+  return { taxable, gst, unitPrice };
+}
+
 @Injectable()
 export class HandDeliveryService {
   constructor(
@@ -46,17 +59,22 @@ export class HandDeliveryService {
     });
     const saved = await this.orderRepo.save(order);
 
-    const orderItems = items.map((i) =>
-      this.itemRepo.create({
+    const orderItems = items.map((i) => {
+      const rate = i.gstRate ?? 5;
+      const calc = reverseCalc(i.amountInr, rate, i.quantity);
+      return this.itemRepo.create({
         handDeliveryOrderId: saved.id,
         particulars: i.particulars,
         hsnCode: i.hsnCode,
         size: i.size,
         quantity: i.quantity,
-        priceInr: i.priceInr,
-        amountInr: i.quantity * i.priceInr,
-      }),
-    );
+        amountInr: i.amountInr,
+        gstRate: rate,
+        taxableValue: calc.taxable,
+        gstAmount: calc.gst,
+        priceInr: calc.unitPrice,
+      });
+    });
     await this.itemRepo.save(orderItems);
 
     await this.auditService.log({
@@ -107,17 +125,22 @@ export class HandDeliveryService {
 
     if (items && items.length > 0) {
       await this.itemRepo.delete({ handDeliveryOrderId: id });
-      const newItems = items.map((i) =>
-        this.itemRepo.create({
+      const newItems = items.map((i) => {
+        const rate = i.gstRate ?? 5;
+        const calc = reverseCalc(i.amountInr, rate, i.quantity);
+        return this.itemRepo.create({
           handDeliveryOrderId: id,
           particulars: i.particulars,
           hsnCode: i.hsnCode,
           size: i.size,
           quantity: i.quantity,
-          priceInr: i.priceInr,
-          amountInr: i.quantity * i.priceInr,
-        }),
-      );
+          amountInr: i.amountInr,
+          gstRate: rate,
+          taxableValue: calc.taxable,
+          gstAmount: calc.gst,
+          priceInr: calc.unitPrice,
+        });
+      });
       await this.itemRepo.save(newItems);
     }
 

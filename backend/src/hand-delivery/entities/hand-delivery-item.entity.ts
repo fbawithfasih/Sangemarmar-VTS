@@ -28,9 +28,21 @@ export class HandDeliveryItem {
   @Column({ type: 'int' })
   quantity: number;
 
+  // Reverse-calc fields: user enters `amountInr` (line total inclusive of GST);
+  // backend derives the rest. `priceInr` is the per-unit taxable price (kept
+  // for backward compatibility with older voucher PDF code paths).
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   priceInr: number;
 
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   amountInr: number;
+
+  @Column({ type: 'decimal', precision: 5, scale: 2, default: 5 })
+  gstRate: number;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  taxableValue: number;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  gstAmount: number;
 }
