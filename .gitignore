@@ -72,3 +72,4 @@ icons/
 .env
 .env.prod
 .env.local
+.claude/
