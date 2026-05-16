@@ -91,15 +91,6 @@ class _BillingDetailScreenState extends State<BillingDetailScreen> {
     );
   }
 
-  void _downloadInvoice() {
-    downloadFile(
-      context: context,
-      path: '${ApiConstants.billing}/${widget.orderId}/invoice',
-      queryParams: {},
-      filename: 'invoice_${widget.orderId.substring(0, 8)}.pdf',
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -113,24 +104,10 @@ class _BillingDetailScreenState extends State<BillingDetailScreen> {
                   tooltip: 'Print voucher (front + back)',
                   onPressed: _printVoucher,
                 ),
-                PopupMenuButton<String>(
+                IconButton(
                   icon: const Icon(Icons.download),
-                  onSelected: (v) {
-                    if (v == 'orv') _downloadOrv();
-                    if (v == 'invoice') _downloadInvoice();
-                  },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(value: 'orv', child: ListTile(
-                      leading: Icon(Icons.assignment, color: Color(0xFF1565C0)),
-                      title: Text('Order Receipt Voucher'),
-                      contentPadding: EdgeInsets.zero,
-                    )),
-                    PopupMenuItem(value: 'invoice', child: ListTile(
-                      leading: Icon(Icons.receipt, color: Color(0xFF2E7D32)),
-                      title: Text('Sales Invoice'),
-                      contentPadding: EdgeInsets.zero,
-                    )),
-                  ],
+                  tooltip: 'Download server-rendered ORV',
+                  onPressed: _downloadOrv,
                 ),
                 if (_order?.status == 'DRAFT')
                   IconButton(
@@ -290,27 +267,19 @@ class _BillingDetailScreenState extends State<BillingDetailScreen> {
         ),
         const SizedBox(height: 24),
 
-        // Download buttons
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.assignment),
-                label: const Text('Download ORV'),
-                onPressed: _downloadOrv,
-                style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF1565C0)),
-              ),
+        // Order Receipt Voucher (front + back, screenshot-aligned layout)
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            icon: const Icon(Icons.assignment),
+            label: const Text('Order Receipt Voucher'),
+            onPressed: _printVoucher,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF1565C0),
+              minimumSize: const Size(0, 46),
+              side: const BorderSide(color: Color(0xFF1565C0)),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.receipt),
-                label: const Text('Download Invoice'),
-                onPressed: _downloadInvoice,
-                style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF2E7D32)),
-              ),
-            ),
-          ],
+          ),
         ),
         const SizedBox(height: 12),
         SizedBox(
