@@ -16,6 +16,7 @@ import { BillingModule } from './billing/billing.module';
 import { HandDeliveryModule } from './hand-delivery/hand-delivery.module';
 import { BillingProductsModule } from './billing-products/billing-products.module';
 import { ShippingModule } from './shipping/shipping.module';
+import { AdminModule } from './admin/admin.module';
 
 // Entities
 import { User } from './users/entities/user.entity';
@@ -75,6 +76,7 @@ import { Shipment } from './shipping/entities/shipment.entity';
     HandDeliveryModule,
     BillingProductsModule,
     ShippingModule,
+    AdminModule,
   ],
 })
 export class AppModule {}
