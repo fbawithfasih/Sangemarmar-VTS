@@ -11,8 +11,9 @@ Two product areas share one backend and database:
 1. **Vehicle Tracking System (VTS)** — tour vehicles enter at the gate → a sale is recorded → commissions (driver, guide, local agent, company) → payments. Plus statements, reports, logistics timeline, notifications.
 2. **Billing** (ADMIN/MANAGER only) — export **Orders** (order receipt voucher + invoice PDFs), **Hand Delivery** GST invoices (bulk upload, Excel report), a **product catalog** (`billing-products`), and **Shipping** labels/tracking via FedEx, DHL and UPS.
 
-- **Backend**: Railway (Postgres 18 also on Railway)
-- **Frontend web**: GitHub Pages (static Flutter build)
+- **Backend**: Railway at `https://api.thesangemarmar.com` (Postgres 18 also on Railway)
+- **Frontend web**: GitHub Pages at `https://vts.thesangemarmar.com` (static Flutter build)
+- **DNS**: GoDaddy. `vts` and `api` are CNAMEs to GitHub Pages and Railway; the root domain and `www` are the Shopify store, so don't touch them
 - **Local dev**: Docker Compose
 
 ---
@@ -42,7 +43,7 @@ flutter pub get
 flutter run
 flutter analyze
 flutter test                  # PDF render + widget tests in mobile/test/
-flutter build web --release --base-href "/Sangemarmar-VTS/"   # GitHub Pages build
+flutter build web --release --base-href "/"   # GitHub Pages build (custom domain, served from /)
 ```
 
 ### Local database
@@ -117,7 +118,7 @@ Flutter screen → ApiService (Dio) → NestJS controller → service → TypeOR
 ## CI/CD
 
 - **Backend**: Railway's GitHub integration builds the multi-stage backend Dockerfile (the image ships only `dist/`, so migrations must live under `src/`) and deploys on push to `main`; healthcheck `GET /api/v1/health` (`railway.json`). Railway project ID `02535877-8eca-4590-b0cd-1b8e87933708`. There is no GitHub Actions workflow for the backend
-- **Web**: `.github/workflows/deploy-web.yml` builds Flutter web and deploys to GitHub Pages on push to `main` touching `mobile/**`
+- **Web**: `.github/workflows/deploy-web.yml` builds Flutter web and deploys to GitHub Pages on push to `main` touching `mobile/**`. `mobile/web/CNAME` keeps the `vts.thesangemarmar.com` custom domain on every deploy
 - The repo root also contains an old, gitignored Flutter web build (`main.dart.js`, `canvaskit/`, …) — not used by CI
 
 ---

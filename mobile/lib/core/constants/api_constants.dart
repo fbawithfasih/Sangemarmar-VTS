@@ -1,5 +1,5 @@
 class ApiConstants {
-  static const String baseUrl = 'https://backend-production-63d2.up.railway.app/api/v1';
+  static const String baseUrl = 'https://api.thesangemarmar.com/api/v1';
 
   // Auth
   static const String login = '/auth/login';

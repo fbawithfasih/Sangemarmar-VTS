@@ -30,7 +30,7 @@ jobs:
         run: |
           cd mobile
           flutter pub get
-          flutter build web --release --base-href "/Sangemarmar-VTS/"
+          flutter build web --release --base-href "/"
 
       - uses: actions/configure-pages@v5
 
