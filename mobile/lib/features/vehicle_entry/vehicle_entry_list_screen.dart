@@ -67,6 +67,7 @@ class _VehicleEntryListScreenState extends State<VehicleEntryListScreen> {
     const colors = {
       'ENTERED': Colors.blue,
       'SALES_COMPLETE': Colors.orange,
+      'PAYMENT_PENDING': Colors.purple,
       'PAYMENT_COMPLETE': Colors.teal,
       'COMPLETED': Colors.green,
       'NO_SALE': Colors.redAccent,
@@ -297,6 +298,7 @@ class _VehicleEntryListScreenState extends State<VehicleEntryListScreen> {
         entry.status != 'NO_SALE' &&
         entry.status != 'COMPLETED' &&
         entry.status != 'SALES_COMPLETE' &&
+        entry.status != 'PAYMENT_PENDING' &&
         entry.status != 'PAYMENT_COMPLETE' &&
         entry.status != 'COMMISSION_COMPLETE';
 

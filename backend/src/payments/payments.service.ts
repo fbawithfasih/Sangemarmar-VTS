@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
 import { Payment } from './entities/payment.entity';
 import { Commission } from '../commissions/entities/commission.entity';
+import { Sale } from '../sales/entities/sale.entity';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { AuditService } from '../audit/audit.service';
 import { SalesService } from '../sales/sales.service';
@@ -28,30 +29,50 @@ export class PaymentsService {
   async create(dto: CreatePaymentDto, user: User): Promise<Payment> {
     const sale = await this.salesService.findOne(dto.saleId);
     if (!sale) throw new NotFoundException('Sale not found');
-
-    const existing = await this.repo.find({ where: { saleId: dto.saleId } });
-    const paidSoFar = existing.reduce((sum, p) => sum + Number(p.amount), 0);
     const grossSale = Number(sale.grossSale);
-    const remaining = +(grossSale - paidSoFar).toFixed(2);
 
-    if (remaining <= 0) {
-      throw new BadRequestException('Sale is already fully paid');
-    }
-    if (Number(dto.amount) > remaining) {
-      throw new BadRequestException(
-        `Amount exceeds remaining balance of ₹${remaining.toLocaleString('en-IN')}`,
+    // Lock the sale row so concurrent payments can't both pass the balance
+    // check and overpay.
+    const { saved, fullyPaid } = await this.repo.manager.transaction(async (em) => {
+      await em.getRepository(Sale).findOne({
+        where: { id: dto.saleId },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      const existing = await em.getRepository(Payment).find({ where: { saleId: dto.saleId } });
+      const paidSoFar = existing.reduce((sum, p) => sum + Number(p.amount), 0);
+      const remaining = +(grossSale - paidSoFar).toFixed(2);
+
+      if (remaining <= 0) {
+        throw new BadRequestException('Sale is already fully paid');
+      }
+      if (Number(dto.amount) > remaining) {
+        throw new BadRequestException(
+          `Amount exceeds remaining balance of ₹${remaining.toLocaleString('en-IN')}`,
+        );
+      }
+
+      const payment = await em.getRepository(Payment).save(
+        em.getRepository(Payment).create({ ...dto, createdById: user.id }),
       );
+      return { saved: payment, fullyPaid: Number(dto.amount) >= remaining };
+    });
+
+    let nextStatus: WorkflowStatus;
+    if (fullyPaid) {
+      const commissions = await this.commissionRepo.find({ where: { saleId: dto.saleId } });
+      nextStatus = commissions.length > 0
+        ? WorkflowStatus.COMPLETED
+        : WorkflowStatus.PAYMENT_COMPLETE;
+    } else {
+      nextStatus = WorkflowStatus.PAYMENT_PENDING;
     }
 
-    const payment = this.repo.create({ ...dto, createdById: user.id });
-    const saved = await this.repo.save(payment);
-
-    const commissions = await this.commissionRepo.find({ where: { saleId: dto.saleId } });
-    const nextStatus = commissions.length > 0
-      ? WorkflowStatus.COMPLETED
-      : WorkflowStatus.PAYMENT_COMPLETE;
-
-    await this.vehiclesService.updateStatus(sale.vehicleEntryId, nextStatus, user.id);
+    // Don't undo a manager's manual "mark complete" with a later part-payment.
+    const currentStatus = sale.vehicleEntry?.status;
+    if (!(currentStatus === WorkflowStatus.COMPLETED && !fullyPaid)) {
+      await this.vehiclesService.updateStatus(sale.vehicleEntryId, nextStatus, user.id);
+    }
 
     await this.auditService.log({
       action: AuditAction.PAYMENT_CREATED,
