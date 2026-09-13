@@ -96,12 +96,13 @@ export class SalesService {
 
     // Lock the sale row (as PaymentsService.create does) so a payment can't
     // land between the paid-total check and the save.
-    await this.repo.manager.transaction(async (em) => {
+    const grossChange = await this.repo.manager.transaction(async (em) => {
       const sale = await em.getRepository(Sale).findOne({
         where: { id },
         lock: { mode: 'pessimistic_write' },
       });
 
+      let change: { paidTotal: number; oldGross: number; newGross: number } | null = null;
       if (updates.grossSale !== undefined) {
         const { paid } = await em.getRepository(Payment)
           .createQueryBuilder('p')
@@ -114,11 +115,15 @@ export class SalesService {
             `Gross sale can't be less than the ₹${paidTotal.toLocaleString('en-IN')} already paid`,
           );
         }
+        change = { paidTotal, oldGross: Number(sale.grossSale), newGross: Number(updates.grossSale) };
       }
 
       Object.assign(sale, updates);
       await em.getRepository(Sale).save(sale);
+      return change;
     });
+
+    if (grossChange) await this.syncPaymentStatus(existing, grossChange, userId);
     const saved = await this.findOne(id);
 
     await this.auditService.log({
@@ -131,5 +136,35 @@ export class SalesService {
     });
 
     return saved;
+  }
+
+  // Keep the vehicle's payment status in line with a changed gross amount,
+  // using the same rules as PaymentsService.create.
+  private async syncPaymentStatus(
+    sale: Sale,
+    { paidTotal, oldGross, newGross }: { paidTotal: number; oldGross: number; newGross: number },
+    userId: string,
+  ): Promise<void> {
+    if (paidTotal <= 0) return; // nothing paid yet: the status isn't payment-driven
+
+    const entry = await this.vehiclesService.findOne(sale.vehicleEntryId);
+    const wasFullyPaid = paidTotal >= oldGross;
+    const isFullyPaid = paidTotal >= newGross;
+
+    let next: WorkflowStatus | null = null;
+    if (isFullyPaid && entry.status === WorkflowStatus.PAYMENT_PENDING) {
+      const commissions = await this.commissionsService.findBySale(sale.id);
+      next = commissions.length > 0 ? WorkflowStatus.COMPLETED : WorkflowStatus.PAYMENT_COMPLETE;
+    } else if (
+      !isFullyPaid
+      && wasFullyPaid
+      && [WorkflowStatus.COMPLETED, WorkflowStatus.PAYMENT_COMPLETE].includes(entry.status)
+    ) {
+      // Only reopen vehicles that were completed by full payment; one a manager
+      // completed by hand while still part-paid stays completed.
+      next = WorkflowStatus.PAYMENT_PENDING;
+    }
+
+    if (next) await this.vehiclesService.updateStatus(entry.id, next, userId);
   }
 }

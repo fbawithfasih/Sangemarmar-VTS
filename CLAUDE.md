@@ -86,7 +86,7 @@ Default credentials after seeding:
 
 **VTS workflow** (`WorkflowStatus` in `common/enums`)
 - Vehicle entry → `ENTERED`; creating a sale → `SALES_COMPLETE` and creates 4 commission rows
-- Payments are capped at the sale's `grossSale` (row-locked). A part payment → `PAYMENT_PENDING`; full payment → `COMPLETED` (or `PAYMENT_COMPLETE` if no commissions). Managers can also set `COMPLETED` manually
+- Payments are capped at the sale's `grossSale` (row-locked). A part payment → `PAYMENT_PENDING`; full payment → `COMPLETED` (or `PAYMENT_COMPLETE` if no commissions). Managers can also set `COMPLETED` manually. Editing `grossSale` can't go below the paid total and re-evaluates the status (`SalesService.syncPaymentStatus`), but never reopens a vehicle a manager completed while part-paid
 - Commissions are created at **rate 0 / ₹0** and set by a manager via override. Default rates live in the `commission_configs` table (seeded on boot, edited via `PUT /commissions/config`) — they are not applied automatically, and there are no `COMMISSION_RATE_*` env vars
 
 **Billing**
