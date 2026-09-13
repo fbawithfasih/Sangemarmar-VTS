@@ -80,8 +80,16 @@ class _SaleEditScreenState extends State<SaleEditScreen> {
         );
         context.pop();
       }
-    } catch (_) {
-      setState(() { _error = 'Failed to update sale.'; _saving = false; });
+    } catch (e) {
+      String msg = 'Failed to update sale.';
+      try {
+        final data = (e as dynamic).response?.data;
+        if (data is Map && data['message'] != null) {
+          final m = data['message'];
+          msg = m is List ? m.join('\n') : m.toString();
+        }
+      } catch (_) {}
+      setState(() { _error = msg; _saving = false; });
     }
   }
 

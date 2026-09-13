@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
 import { Sale } from './entities/sale.entity';
+import { Payment } from '../payments/entities/payment.entity';
 import { CreateSaleDto, UpdateSaleDto } from './dto/create-sale.dto';
 import { AuditService } from '../audit/audit.service';
 import { VehiclesService } from '../vehicles/vehicles.service';
@@ -90,11 +91,35 @@ export class SalesService {
   }
 
   async update(id: string, updates: UpdateSaleDto, userId: string): Promise<Sale> {
-    const sale = await this.findOne(id);
-    const old = { grossSale: sale.grossSale, netSale: sale.netSale };
+    const existing = await this.findOne(id);
+    const old = { grossSale: existing.grossSale, netSale: existing.netSale };
 
-    Object.assign(sale, updates);
-    const saved = await this.repo.save(sale);
+    // Lock the sale row (as PaymentsService.create does) so a payment can't
+    // land between the paid-total check and the save.
+    await this.repo.manager.transaction(async (em) => {
+      const sale = await em.getRepository(Sale).findOne({
+        where: { id },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (updates.grossSale !== undefined) {
+        const { paid } = await em.getRepository(Payment)
+          .createQueryBuilder('p')
+          .select('COALESCE(SUM(p.amount), 0)', 'paid')
+          .where('p.saleId = :id', { id })
+          .getRawOne();
+        const paidTotal = +Number(paid).toFixed(2);
+        if (Number(updates.grossSale) < paidTotal) {
+          throw new BadRequestException(
+            `Gross sale can't be less than the ₹${paidTotal.toLocaleString('en-IN')} already paid`,
+          );
+        }
+      }
+
+      Object.assign(sale, updates);
+      await em.getRepository(Sale).save(sale);
+    });
+    const saved = await this.findOne(id);
 
     await this.auditService.log({
       action: AuditAction.SALE_UPDATED,
