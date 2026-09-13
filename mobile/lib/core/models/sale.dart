@@ -11,6 +11,7 @@ class Sale {
   final DateTime saleDate;
   final String? notes;
   final DateTime createdAt;
+  final String? createdById;
 
   const Sale({
     required this.id,
@@ -23,6 +24,7 @@ class Sale {
     required this.saleDate,
     this.notes,
     required this.createdAt,
+    this.createdById,
   });
 
   factory Sale.fromJson(Map<String, dynamic> json) => Sale(
@@ -38,5 +40,6 @@ class Sale {
         saleDate: DateTime.parse(json['saleDate'] as String).toLocal(),
         notes: json['notes'] as String?,
         createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
+        createdById: json['createdById'] as String?,
       );
 }

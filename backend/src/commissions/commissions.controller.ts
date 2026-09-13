@@ -11,7 +11,8 @@ import { User } from '../users/entities/user.entity';
 import { CommissionRecipientType, UserRole } from '../common/enums';
 
 @Controller('commissions')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN, UserRole.MANAGER)
 export class CommissionsController {
   constructor(private readonly commissionsService: CommissionsService) {}
 
@@ -21,8 +22,6 @@ export class CommissionsController {
   }
 
   @Put('config')
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MANAGER)
   updateConfigs(@Body() dto: UpdateCommissionConfigDto, @CurrentUser() user: User) {
     return this.commissionsService.updateConfigs(dto, user);
   }
@@ -36,8 +35,9 @@ export class CommissionsController {
   }
 
   @Get('sale/:saleId')
-  findBySale(@Param('saleId') saleId: string) {
-    return this.commissionsService.findBySale(saleId);
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.SALES_STAFF)
+  findBySale(@Param('saleId') saleId: string, @CurrentUser() user: User) {
+    return this.commissionsService.findBySaleForUser(saleId, user);
   }
 
   @Patch(':id/override')
@@ -50,8 +50,6 @@ export class CommissionsController {
   }
 
   @Patch(':id/pay')
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MANAGER)
   recordPayment(@Param('id') id: string, @Body() dto: RecordCommissionPaymentDto) {
     return this.commissionsService.recordPayment(id, dto);
   }

@@ -34,5 +34,14 @@ class AppUser {
 
   bool get canViewStatements => isManager;
 
+  // Mirrors the backend rule: managers see all commissions, sales staff only
+  // on sales they created or are named as the salesperson on.
+  bool canViewCommissionsOn({required String salesperson, String? createdById}) {
+    if (isManager) return true;
+    if (!isSalesStaff) return false;
+    return createdById == id ||
+        salesperson.trim().toUpperCase() == name.trim().toUpperCase();
+  }
+
   bool get canEditCommissionRates => isManager;
 }

@@ -4,6 +4,7 @@ import {
 import { VehiclesService } from './vehicles.service';
 import { CreateVehicleEntryDto } from './dto/create-vehicle-entry.dto';
 import { UpdateVehicleEntryDto } from './dto/update-vehicle-entry.dto';
+import { UpdateVehicleStatusDto } from './dto/update-vehicle-status.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -56,11 +57,13 @@ export class VehiclesController {
   }
 
   @Patch(':id/status')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.SALES_STAFF, UserRole.CASHIER)
   updateStatus(
     @Param('id') id: string,
-    @Body('status') status: WorkflowStatus,
+    @Body() dto: UpdateVehicleStatusDto,
     @CurrentUser() user: User,
   ) {
-    return this.vehiclesService.updateStatus(id, status, user.id);
+    return this.vehiclesService.changeStatus(id, dto.status, user);
   }
 }

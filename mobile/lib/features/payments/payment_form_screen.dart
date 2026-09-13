@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../../core/models/payment.dart';
+import '../../core/providers/auth_provider.dart';
 import '../../core/models/sale.dart';
 import '../../core/services/api_service.dart';
 import '../../core/constants/api_constants.dart';
@@ -276,12 +278,19 @@ class _PaymentFormScreenState extends State<PaymentFormScreen> {
                         ),
                       ),
                     ),
-                  const SizedBox(height: 16),
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.percent),
-                    label: const Text('View Commissions'),
-                    onPressed: () => context.push('/sales/${widget.saleId}/commissions'),
-                  ),
+                  if (_sale != null &&
+                      (context.read<AuthProvider>().user?.canViewCommissionsOn(
+                            salesperson: _sale!.salesperson,
+                            createdById: _sale!.createdById,
+                          ) ??
+                          false)) ...[
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.percent),
+                      label: const Text('View Commissions'),
+                      onPressed: () => context.push('/sales/${widget.saleId}/commissions'),
+                    ),
+                  ],
                 ],
               ),
             ),

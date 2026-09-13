@@ -120,6 +120,19 @@ export class CommissionsService implements OnModuleInit {
     return this.repo.find({ where: { saleId }, relations: ['overriddenBy'] });
   }
 
+  // Sales staff may only see commissions on their own sales: ones they
+  // created, or where they are named as the salesperson.
+  async findBySaleForUser(saleId: string, user: User): Promise<Commission[]> {
+    if (user.role === UserRole.SALES_STAFF) {
+      const sale = await this.repo.manager.findOne(Sale, { where: { id: saleId } });
+      if (!sale) throw new NotFoundException('Sale not found');
+      const isOwn = sale.createdById === user.id
+        || sale.salesperson?.trim().toUpperCase() === user.name?.trim().toUpperCase();
+      if (!isOwn) throw new ForbiddenException('You can only view commissions on your own sales');
+    }
+    return this.findBySale(saleId);
+  }
+
   async override(id: string, dto: OverrideCommissionDto, user: User): Promise<Commission> {
     if (![UserRole.ADMIN, UserRole.MANAGER].includes(user.role)) {
       throw new ForbiddenException('Only managers and admins can override commissions');

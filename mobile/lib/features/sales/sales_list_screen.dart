@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../../core/models/sale.dart';
+import '../../core/providers/auth_provider.dart';
 import '../../core/services/api_service.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/widgets/app_bar.dart';
@@ -39,6 +41,7 @@ class _SalesListScreenState extends State<SalesListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<AuthProvider>().user;
     return Scaffold(
       appBar: SangemarmarAppBar(title: const Text('Sales')),
       body: _loading
@@ -102,14 +105,20 @@ class _SalesListScreenState extends State<SalesListScreen> {
                                               onPressed: () => context.push('/sales/${s.id}/payments'),
                                             ),
                                           ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: OutlinedButton.icon(
-                                              icon: const Icon(Icons.percent, size: 16),
-                                              label: const Text('Commissions'),
-                                              onPressed: () => context.push('/sales/${s.id}/commissions'),
+                                          if (user?.canViewCommissionsOn(
+                                                salesperson: s.salesperson,
+                                                createdById: s.createdById,
+                                              ) ??
+                                              false) ...[
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: OutlinedButton.icon(
+                                                icon: const Icon(Icons.percent, size: 16),
+                                                label: const Text('Commissions'),
+                                                onPressed: () => context.push('/sales/${s.id}/commissions'),
+                                              ),
                                             ),
-                                          ),
+                                          ],
                                         ],
                                       ),
                                       const SizedBox(height: 8),

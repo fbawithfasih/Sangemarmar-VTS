@@ -113,6 +113,19 @@ export class VehiclesService {
     });
   }
 
+  // Manual status change from the API. Managers and admins may set any status;
+  // sales staff and cashiers may only mark a vehicle NO_SALE before a sale exists.
+  async changeStatus(id: string, status: WorkflowStatus, user: User): Promise<VehicleEntry> {
+    if (![UserRole.ADMIN, UserRole.MANAGER].includes(user.role)) {
+      const entry = await this.findOne(id);
+      const preSale = [WorkflowStatus.ENTERED, WorkflowStatus.SALES_PENDING].includes(entry.status);
+      if (status !== WorkflowStatus.NO_SALE || !preSale) {
+        throw new ForbiddenException('Only managers and admins can change this status');
+      }
+    }
+    return this.updateStatus(id, status, user.id);
+  }
+
   async updateStatus(id: string, status: WorkflowStatus, userId: string): Promise<VehicleEntry> {
     const entry = await this.findOne(id);
     const old = entry.status;

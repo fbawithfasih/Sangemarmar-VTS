@@ -3,9 +3,13 @@ import { Response } from 'express';
 import { StatementsService } from './statements.service';
 import { ExportStatementDto, StatementFilterDto, StatementType } from './dto/statement-filter.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '../common/enums';
 
 @Controller('statements')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.ADMIN, UserRole.MANAGER)
 export class StatementsController {
   constructor(private readonly statementsService: StatementsService) {}
 
