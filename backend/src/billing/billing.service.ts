@@ -11,6 +11,7 @@ import { AuditService } from '../audit/audit.service';
 import { VehiclesService } from '../vehicles/vehicles.service';
 import { AuditAction, BillingOrderStatus } from '../common/enums';
 import { User } from '../users/entities/user.entity';
+import { nextInvoiceNumber } from '../common/invoice-number';
 
 function istDayStart(dateStr: string): Date {
   return new Date(`${dateStr}T00:00:00+05:30`);
@@ -83,44 +84,38 @@ export class BillingService {
     private readonly vehiclesService: VehiclesService,
   ) {}
 
-  private async generateInvoiceNumber(): Promise<string> {
-    const now = new Date();
-    const fyStart = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
-    const fyEnd = fyStart + 1;
-    const fyLabel = `${String(fyStart).slice(2)}-${String(fyEnd).slice(2)}`;
-    const startOfFy = new Date(fyStart, 3, 1);
-    const count = await this.orderRepo.count({ where: { createdAt: MoreThanOrEqual(startOfFy) } });
-    return `SKC/${String(count + 1).padStart(3, '0')}/${fyLabel}`;
-  }
-
   async create(dto: CreateBillingOrderDto, user: User): Promise<BillingOrder> {
     if (dto.vehicleEntryId) {
       const entry = await this.vehiclesService.findOne(dto.vehicleEntryId);
       if (!entry) throw new NotFoundException('Vehicle entry not found');
     }
 
-    const invoiceNumber = await this.generateInvoiceNumber();
     const { items, ...orderData } = dto;
 
-    const order = this.orderRepo.create({
-      ...orderData,
-      invoiceNumber,
-      createdById: user.id,
-    });
-    const saved = await this.orderRepo.save(order);
+    const saved = await this.orderRepo.manager.transaction(async (em) => {
+      const invoiceNumber = await nextInvoiceNumber(em, 'billing_orders', 'SKC');
+      const orderRepo = em.getRepository(BillingOrder);
+      const itemRepo = em.getRepository(BillingItem);
 
-    const billingItems = items.map((i) =>
-      this.itemRepo.create({
-        billingOrderId: saved.id,
-        particulars: i.particulars,
-        hsnCode: i.hsnCode,
-        size: i.size,
-        quantity: i.quantity,
-        priceInr: i.priceInr,
-        amountInr: i.quantity * i.priceInr,
-      }),
-    );
-    await this.itemRepo.save(billingItems);
+      const order = await orderRepo.save(
+        orderRepo.create({ ...orderData, invoiceNumber, createdById: user.id }),
+      );
+
+      const billingItems = items.map((i) =>
+        itemRepo.create({
+          billingOrderId: order.id,
+          particulars: i.particulars,
+          hsnCode: i.hsnCode,
+          size: i.size,
+          quantity: i.quantity,
+          priceInr: i.priceInr,
+          amountInr: i.quantity * i.priceInr,
+        }),
+      );
+      await itemRepo.save(billingItems);
+      return order;
+    });
+    const { invoiceNumber } = saved;
 
     await this.auditService.log({
       action: AuditAction.BILLING_ORDER_CREATED,

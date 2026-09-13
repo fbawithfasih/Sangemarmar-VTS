@@ -10,6 +10,7 @@ import {
 import { AuditService } from '../audit/audit.service';
 import { AuditAction, BillingOrderStatus } from '../common/enums';
 import { User } from '../users/entities/user.entity';
+import { nextInvoiceNumber } from '../common/invoice-number';
 
 function istDayStart(dateStr: string): Date {
   return new Date(`${dateStr}T00:00:00+05:30`);
@@ -39,44 +40,38 @@ export class HandDeliveryService {
     private readonly auditService: AuditService,
   ) {}
 
-  private async generateInvoiceNumber(): Promise<string> {
-    const now = new Date();
-    const fyStart = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
-    const fyEnd = fyStart + 1;
-    const fyLabel = `${String(fyStart).slice(2)}-${String(fyEnd).slice(2)}`;
-    const startOfFy = new Date(fyStart, 3, 1);
-    const count = await this.orderRepo.count({ where: { createdAt: MoreThanOrEqual(startOfFy) } });
-    return `SKC-HD/${String(count + 1).padStart(3, '0')}/${fyLabel}`;
-  }
-
   async create(dto: CreateHandDeliveryDto, user: User): Promise<HandDeliveryOrder> {
-    const invoiceNumber = await this.generateInvoiceNumber();
     const { items, ...orderData } = dto;
 
-    const order = this.orderRepo.create({
-      ...orderData,
-      invoiceNumber,
-      createdById: user.id,
-    });
-    const saved = await this.orderRepo.save(order);
+    const saved = await this.orderRepo.manager.transaction(async (em) => {
+      const invoiceNumber = await nextInvoiceNumber(em, 'hand_delivery_orders', 'SKC-HD');
+      const orderRepo = em.getRepository(HandDeliveryOrder);
+      const itemRepo = em.getRepository(HandDeliveryItem);
 
-    const orderItems = items.map((i) => {
-      const rate = i.gstRate ?? 5;
-      const calc = reverseCalc(i.amountInr, rate, i.quantity);
-      return this.itemRepo.create({
-        handDeliveryOrderId: saved.id,
-        particulars: i.particulars,
-        hsnCode: i.hsnCode,
-        size: i.size,
-        quantity: i.quantity,
-        amountInr: i.amountInr,
-        gstRate: rate,
-        taxableValue: calc.taxable,
-        gstAmount: calc.gst,
-        priceInr: calc.unitPrice,
+      const order = await orderRepo.save(
+        orderRepo.create({ ...orderData, invoiceNumber, createdById: user.id }),
+      );
+
+      const orderItems = items.map((i) => {
+        const rate = i.gstRate ?? 5;
+        const calc = reverseCalc(i.amountInr, rate, i.quantity);
+        return itemRepo.create({
+          handDeliveryOrderId: order.id,
+          particulars: i.particulars,
+          hsnCode: i.hsnCode,
+          size: i.size,
+          quantity: i.quantity,
+          amountInr: i.amountInr,
+          gstRate: rate,
+          taxableValue: calc.taxable,
+          gstAmount: calc.gst,
+          priceInr: calc.unitPrice,
+        });
       });
+      await itemRepo.save(orderItems);
+      return order;
     });
-    await this.itemRepo.save(orderItems);
+    const { invoiceNumber } = saved;
 
     await this.auditService.log({
       action: AuditAction.HAND_DELIVERY_CREATED,
