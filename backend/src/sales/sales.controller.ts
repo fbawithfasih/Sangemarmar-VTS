@@ -2,7 +2,7 @@ import {
   Body, Controller, Get, Param, Patch, Post, Query, UseGuards,
 } from '@nestjs/common';
 import { SalesService } from './sales.service';
-import { CreateSaleDto } from './dto/create-sale.dto';
+import { CreateSaleDto, UpdateSaleDto } from './dto/create-sale.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -42,7 +42,7 @@ export class SalesController {
   @Roles(UserRole.SALES_STAFF, UserRole.MANAGER, UserRole.ADMIN)
   update(
     @Param('id') id: string,
-    @Body() updates: Partial<CreateSaleDto>,
+    @Body() updates: UpdateSaleDto,
     @CurrentUser() user: User,
   ) {
     return this.salesService.update(id, updates, user.id);

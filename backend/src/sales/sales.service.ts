@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
 import { Sale } from './entities/sale.entity';
-import { CreateSaleDto } from './dto/create-sale.dto';
+import { CreateSaleDto, UpdateSaleDto } from './dto/create-sale.dto';
 import { AuditService } from '../audit/audit.service';
 import { VehiclesService } from '../vehicles/vehicles.service';
 import { LogisticsService } from '../logistics/logistics.service';
@@ -89,7 +89,7 @@ export class SalesService {
     return sale;
   }
 
-  async update(id: string, updates: Partial<CreateSaleDto>, userId: string): Promise<Sale> {
+  async update(id: string, updates: UpdateSaleDto, userId: string): Promise<Sale> {
     const sale = await this.findOne(id);
     const old = { grossSale: sale.grossSale, netSale: sale.netSale };
 
