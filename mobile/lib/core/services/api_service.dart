@@ -10,6 +10,10 @@ class ApiService {
 
   static const _tokenKey = 'access_token';
 
+  // Called when an authenticated request gets a 401 (expired or revoked
+  // token). Set in main.dart once the app has started.
+  static Future<void> Function()? onUnauthorized;
+
   ApiService._internal() {
     _dio = Dio(BaseOptions(
       baseUrl: ApiConstants.baseUrl,
@@ -27,7 +31,14 @@ class ApiService {
         }
         return handler.next(options);
       },
-      onError: (error, handler) => handler.next(error),
+      onError: (error, handler) async {
+        // A 401 from the login call itself just means wrong credentials.
+        final isLogin = error.requestOptions.path == ApiConstants.login;
+        if (error.response?.statusCode == 401 && !isLogin && onUnauthorized != null) {
+          await onUnauthorized!();
+        }
+        return handler.next(error);
+      },
     ));
   }
 

@@ -41,6 +41,7 @@ npm run migration:revert      # Revert the last migration
 flutter pub get
 flutter run
 flutter analyze
+flutter test                  # PDF render + widget tests in mobile/test/
 flutter build web --release --base-href "/Sangemarmar-VTS/"   # GitHub Pages build
 ```
 
@@ -99,7 +100,7 @@ Default credentials after seeding:
 
 - `main.dart` calls `AuthProvider.tryAutoLogin()` before `runApp`; `app.dart` sets up `MaterialApp.router`
 - `core/router/app_router.dart` — all routes; redirects unauthenticated users to `/login`, and after login ADMIN → `/admin-dashboard`, MANAGER → `/module-select`, others → `/dashboard`
-- `core/services/api_service.dart` — Dio singleton; attaches `Authorization: Bearer <token>` from SharedPreferences. There is no 401 handling, so an expired token leaves the app looking logged in
+- `core/services/api_service.dart` — Dio singleton; attaches `Authorization: Bearer <token>` from SharedPreferences. A 401 on any request except login calls `ApiService.onUnauthorized` (wired in `main.dart`): `AuthProvider.expireSession()` clears the token and the app navigates to `/login` with a "session expired" message
 - `core/constants/api_constants.dart` — **hardcoded production API URL**; change it for local dev
 - `core/models/user.dart` — role getters (`isManager` includes ADMIN; `canViewCommissionsOn(...)` etc.). Keep these in sync with backend role rules so the UI never offers an action the API rejects
 - Screens live in `features/<feature>/` and call `ApiService` directly with local `setState` — there are no per-feature providers. Only `AuthProvider` is global

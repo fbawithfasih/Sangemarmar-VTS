@@ -46,6 +46,17 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Like logout, but leaves a message for the login screen. Safe to call
+  // repeatedly when several requests fail with 401 at once.
+  Future<void> expireSession() async {
+    if (_user == null) return;
+    // Clear the user before awaiting so concurrent 401s see it as handled.
+    _user = null;
+    _error = 'Your session has expired. Please log in again.';
+    await _api.clearToken();
+    notifyListeners();
+  }
+
   Future<bool> tryAutoLogin() async {
     final token = await _api.getToken();
     if (token == null) return false;
