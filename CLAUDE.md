@@ -23,7 +23,9 @@ npm start           # Production (runs dist/main.js)
 npm run lint        # ESLint with auto-fix
 npm run test        # Jest test suite
 npm run seed        # Seed database with default users
-npm run typeorm     # TypeORM CLI (migrations)
+npm run migration:generate -- src/migrations/<Name>  # Diff entities vs DB → new migration
+npm run migration:run      # Apply pending migrations (the app also runs them on startup)
+npm run migration:revert   # Revert the last migration
 ```
 
 ### Mobile (`/mobile`)
@@ -68,7 +70,9 @@ Default credentials after seeding:
 - `backend/src/app.module.ts` — Root module: TypeORM connection (reads `.env`), imports all feature modules
 - `backend/src/main.ts` — Bootstrap: global validation pipe, CORS enabled, API prefix `/api/v1`, port from `APP_PORT` env
 - Feature modules: `auth/`, `users/`, `vehicles/`, `sales/`, `payments/`, `commissions/`, `reports/`, `logistics/`, `statements/`, `audit/`, `notifications/`
-- TypeORM schema sync is `synchronize: true` — no manual migrations needed in dev; schema auto-updates on restart
+- Schema changes go through **migrations** (`backend/src/migrations/`); `synchronize` is off everywhere. After changing an entity, run `migration:generate` against a local DB, review the SQL, and commit it — pending migrations run automatically when the app starts (`migrationsRun: true`), including on Railway
+- TypeORM config lives in `backend/src/database/typeorm-options.ts`, shared by the app and the CLI data source (`data-source.ts`); new entities must be added to `ENTITIES` there
+- `InitialSchema` is the baseline of the pre-migrations schema: it no-ops on databases that already have tables, and its `down()` refuses to run unless `ALLOW_BASELINE_REVERT=true`
 - Role-based access via JWT guards and `@Roles()` decorators
 
 ### Mobile (Flutter + Provider + GoRouter)

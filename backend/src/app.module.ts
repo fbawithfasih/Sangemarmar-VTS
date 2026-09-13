@@ -17,48 +17,15 @@ import { HandDeliveryModule } from './hand-delivery/hand-delivery.module';
 import { BillingProductsModule } from './billing-products/billing-products.module';
 import { ShippingModule } from './shipping/shipping.module';
 
-// Entities
-import { User } from './users/entities/user.entity';
-import { VehicleEntry } from './vehicles/entities/vehicle-entry.entity';
-import { Sale } from './sales/entities/sale.entity';
-import { Payment } from './payments/entities/payment.entity';
-import { Commission } from './commissions/entities/commission.entity';
-import { CommissionConfig } from './commissions/entities/commission-config.entity';
-import { LogisticsEvent } from './logistics/entities/logistics-event.entity';
-import { AuditLog } from './audit/entities/audit-log.entity';
-import { Notification } from './notifications/entities/notification.entity';
-import { BillingOrder } from './billing/entities/billing-order.entity';
-import { BillingItem } from './billing/entities/billing-item.entity';
-import { HandDeliveryOrder } from './hand-delivery/entities/hand-delivery-order.entity';
-import { HandDeliveryItem } from './hand-delivery/entities/hand-delivery-item.entity';
-import { BillingProduct } from './billing-products/entities/billing-product.entity';
-import { Shipment } from './shipping/entities/shipment.entity';
+import { buildTypeOrmOptions } from './database/typeorm-options';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => {
-        const databaseUrl = config.get<string>('DATABASE_URL');
-        const base = {
-          type: 'postgres' as const,
-          entities: [User, VehicleEntry, Sale, Payment, Commission, CommissionConfig, LogisticsEvent, AuditLog, Notification, BillingOrder, BillingItem, HandDeliveryOrder, HandDeliveryItem, BillingProduct, Shipment],
-          synchronize: true,
-          logging: config.get('NODE_ENV') === 'development',
-        };
-        if (databaseUrl) {
-          return { ...base, url: databaseUrl, ssl: { rejectUnauthorized: false } } as TypeOrmModuleOptions;
-        }
-        return {
-          ...base,
-          host: config.get('DB_HOST', 'localhost'),
-          port: parseInt(config.get('DB_PORT', '5432'), 10),
-          username: config.get('DB_USERNAME', 'postgres'),
-          password: config.get('DB_PASSWORD', 'postgres'),
-          database: config.get('DB_NAME', 'sangemarmar_vts'),
-        } as TypeOrmModuleOptions;
-      },
+      useFactory: (config: ConfigService): TypeOrmModuleOptions =>
+        buildTypeOrmOptions((key) => config.get<string>(key) || undefined),
     }),
     AuthModule,
     UsersModule,
